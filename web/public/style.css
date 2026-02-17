@@ -1,0 +1,34 @@
+:root {
+  --bg: #0f1623;
+  --panel: #172234;
+  --panel-2: #1f2d42;
+  --text: #e8eef7;
+  --muted: #9eb2cc;
+  --accent: #5ec2ff;
+  --danger: #ff8578;
+  --focus: #ffd166;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.4 Inter, Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
+button, select, input { font: inherit; color: inherit; background: var(--panel-2); border: 1px solid #2c3c52; border-radius: 8px; padding: 0.4rem 0.6rem; }
+button:hover { background: #253954; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+.topbar { display: flex; gap: 0.6rem; align-items: center; padding: 0.6rem; background: var(--panel); border-bottom: 1px solid #2a384d; flex-wrap: wrap; }
+.main { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+.map-wrap { position: relative; min-height: 0; }
+#mapCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
+#mapCanvas.dragging { cursor: grabbing; }
+.dossier { background: var(--panel); border-left: 1px solid #2a384d; padding: 0.8rem; overflow: auto; }
+.metric { display:flex; justify-content:space-between; margin: 0.2rem 0; }
+.tooltip { position: absolute; pointer-events: none; background: rgba(13,20,30,.95); border: 1px solid #314861; padding: .5rem .6rem; border-radius: 8px; font-size: 13px; min-width: 180px; }
+.legend { position: absolute; bottom: 12px; left: 12px; background: rgba(11,16,24,.92); border:1px solid #2c3d55; border-radius: 8px; padding:.5rem; }
+.debug { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,.6); padding:.45rem; border-radius:6px; font-size:12px; }
+.events { max-height: 130px; overflow:auto; font-size:13px; color:var(--muted); }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; }
+.modal-card { width: min(540px, 92vw); background: var(--panel); border:1px solid #2b3d55; border-radius: 12px; padding: 1rem; }
+@media (max-width: 980px) {
+  .main { grid-template-columns: 1fr; }
+  .dossier { position: absolute; right: 0; top: 52px; bottom: 0; width: min(360px, 90vw); transform: translateX(100%); transition: transform .2s ease; z-index: 5; }
+  .dossier.open { transform: translateX(0); }
+}
