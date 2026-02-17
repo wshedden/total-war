@@ -9,7 +9,7 @@ import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } 
 import { createStore, createInitialSimState } from './state/store.js';
 import { createActions } from './state/actions.js';
 import { createRenderer } from './map/renderer.js';
-import { fitCameraToBbox, zoomAtPoint } from './map/camera.js';
+import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.js';
 import { pickCountry } from './map/picking.js';
 import { createFpsCounter } from './util/perf.js';
 import { isTypingTarget } from './util/dom.js';
@@ -55,13 +55,18 @@ controls.help.onclick = () => showHelp();
 
 const renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
+actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
 let dirty = true;
 let mouse = { x: 0, y: 0 };
 let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
 
 store.subscribe(() => { dirty = true; });
-window.addEventListener('resize', () => { renderer.resize(); dirty = true; });
+window.addEventListener('resize', () => {
+  renderer.resize();
+  actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
+  dirty = true;
+});
 
 let drag = null;
 ui.canvas.addEventListener('mousedown', (e) => {
@@ -73,7 +78,7 @@ window.addEventListener('mousemove', (e) => {
   mouse = { x: e.offsetX, y: e.offsetY };
   if (drag) {
     const dx = e.clientX - drag.x; const dy = e.clientY - drag.y;
-    actions.setCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy });
+    actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
   const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
@@ -85,12 +90,12 @@ ui.canvas.addEventListener('click', (e) => {
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);
-  if (entry) animateCamera(fitCameraToBbox(entry.bbox, ui.canvas.clientWidth, ui.canvas.clientHeight));
+  if (entry) animateCamera(fitCameraToFeature(entry.feature, ui.canvas.clientWidth, ui.canvas.clientHeight));
 });
 ui.canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   const factor = Math.exp(-Math.sign(e.deltaY) * 0.08);
-  actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY));
+  actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY, ui.canvas.clientWidth, ui.canvas.clientHeight));
 }, { passive: false });
 
 window.addEventListener('keydown', (e) => {
@@ -112,7 +117,7 @@ function frame(now) {
     acc += dt * state.speed;
     while (acc >= 1) { actions.stepTurn(); acc -= 1; }
   }
-  if (dirty || !state.paused) drawNow();
+  if (dirty) drawNow();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -148,7 +153,7 @@ function animateCamera(target) {
   function tick(now) {
     const p = Math.min(1, (now - t0) / dur);
     const e = p * (2 - p);
-    actions.setCamera({ zoom: from.zoom + (target.zoom - from.zoom) * e, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e });
+    actions.setCamera(constrainCamera({ zoom: from.zoom + (target.zoom - from.zoom) * e, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     if (p < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);

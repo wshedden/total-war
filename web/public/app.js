@@ -1886,9 +1886,77 @@ function naturalEarth1_default() {
   return projection(naturalEarth1Raw).scale(175.295);
 }
 
+// web/src/map/camera.js
+var BASE_MAP_SCALE = 0.19;
+var CAMERA_LIMITS = { minZoom: 0.55, maxZoom: 7 };
+function projectedSphereBounds(width, height, zoom) {
+  const projection2 = naturalEarth1_default().translate([width / 2, height / 2]).scale(zoom * Math.min(width, height) * BASE_MAP_SCALE);
+  return path_default(projection2).bounds({ type: "Sphere" });
+}
+function minZoomForViewport(width, height) {
+  const [[x05, y05], [x12, y12]] = projectedSphereBounds(width, height, 1);
+  const bw = Math.max(1, x12 - x05);
+  const bh = Math.max(1, y12 - y05);
+  const cover = 0.96;
+  return Math.max(CAMERA_LIMITS.minZoom, width * cover / bw, height * cover / bh);
+}
+function clampZoom(zoom, width = 0, height = 0) {
+  const minZoom = width > 0 && height > 0 ? minZoomForViewport(width, height) : CAMERA_LIMITS.minZoom;
+  return Math.max(minZoom, Math.min(CAMERA_LIMITS.maxZoom, zoom));
+}
+function constrainCamera(camera, width, height) {
+  const zoom = clampZoom(camera.zoom, width, height);
+  const [[left0, top0], [right0, bottom0]] = projectedSphereBounds(width, height, zoom);
+  const bw = right0 - left0;
+  const bh = bottom0 - top0;
+  const padX = Math.min(28, width * 0.04);
+  const padY = Math.min(24, height * 0.04);
+  let x = camera.x;
+  let y = camera.y;
+  if (bw <= width - padX * 2) {
+    x = 0;
+  } else {
+    const minX = width - padX - right0;
+    const maxX = padX - left0;
+    x = Math.max(minX, Math.min(maxX, x));
+  }
+  if (bh <= height - padY * 2) {
+    y = 0;
+  } else {
+    const minY = height - padY - bottom0;
+    const maxY = padY - top0;
+    y = Math.max(minY, Math.min(maxY, y));
+  }
+  return { zoom, x, y };
+}
+function zoomAtPoint(camera, factor, px, py, width, height) {
+  const nextZoom = clampZoom(camera.zoom * factor, width, height);
+  const zf = nextZoom / camera.zoom;
+  const next = {
+    zoom: nextZoom,
+    x: px - width / 2 - (px - width / 2 - camera.x) * zf,
+    y: py - height / 2 - (py - height / 2 - camera.y) * zf
+  };
+  return constrainCamera(next, width, height);
+}
+function fitCameraToFeature(feature2, width, height) {
+  const padding = Math.min(width, height) * 0.12;
+  const projection2 = naturalEarth1_default().fitExtent(
+    [[padding, padding], [width - padding, height - padding]],
+    feature2
+  );
+  const zoom = clampZoom(projection2.scale() / (Math.min(width, height) * BASE_MAP_SCALE), width, height);
+  const camera = {
+    zoom,
+    x: projection2.translate()[0] - width / 2,
+    y: projection2.translate()[1] - height / 2
+  };
+  return constrainCamera(camera, width, height);
+}
+
 // web/src/map/projection.js
 function createProjection(width, height, camera) {
-  const projection2 = naturalEarth1_default().translate([width / 2 + camera.x, height / 2 + camera.y]).scale(camera.zoom * Math.min(width, height) * 0.19);
+  const projection2 = naturalEarth1_default().translate([width / 2 + camera.x, height / 2 + camera.y]).scale(camera.zoom * Math.min(width, height) * BASE_MAP_SCALE);
   const path = path_default(projection2);
   return { projection: projection2, path };
 }
@@ -1933,6 +2001,11 @@ function createRenderer(canvas, topo2, getState) {
   let width = 1;
   let height = 1;
   let pickCache = [];
+  let path = null;
+  let cameraKey = "";
+  let metricRangeKey = "";
+  let metricMin = 0;
+  let metricMax = 1;
   function resize() {
     width = canvas.clientWidth;
     height = canvas.clientHeight;
@@ -1942,39 +2015,45 @@ function createRenderer(canvas, topo2, getState) {
   }
   function draw(alpha = 1) {
     const state = getState();
-    const { path } = createProjection(width, height, state.camera);
-    pickCache = rebuildPickCache(world.features, path);
-    const metricValues = Object.keys(state.dynamic).map((cca3) => {
-      const d = state.dynamic[cca3];
-      const c = state.countryIndex[cca3];
-      return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
-    }).filter(Number.isFinite);
-    const min = Math.min(...metricValues);
-    const max = Math.max(...metricValues);
+    const nextCameraKey = `${width}:${height}:${state.camera.x.toFixed(2)}:${state.camera.y.toFixed(2)}:${state.camera.zoom.toFixed(4)}`;
+    if (nextCameraKey !== cameraKey || !path) {
+      ({ path } = createProjection(width, height, state.camera));
+      pickCache = rebuildPickCache(world.features, path);
+      cameraKey = nextCameraKey;
+    }
+    const nextMetricRangeKey = `${state.metric}:${state.turn}`;
+    if (nextMetricRangeKey !== metricRangeKey) {
+      const metricValues = Object.keys(state.dynamic).map((cca3) => {
+        const d = state.dynamic[cca3];
+        const c = state.countryIndex[cca3];
+        return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
+      }).filter(Number.isFinite);
+      metricMin = Math.min(...metricValues);
+      metricMax = Math.max(...metricValues);
+      metricRangeKey = nextMetricRangeKey;
+    }
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    for (const f of world.features) {
+    for (const entry of pickCache) {
+      const { feature: f, path2d } = entry;
       const cca3 = f.properties.cca3;
       const dynamic = state.dynamic[cca3];
       const c = state.countryIndex[cca3];
       const value = state.metric === "militaryPercentGdp" ? dynamic.militaryPct : state.metric === "gdp" ? dynamic.gdp : c.indicators[state.metric];
-      const t = (value - min) / (max - min || 1);
+      const t = (value - metricMin) / (metricMax - metricMin || 1);
       const fill = state.overlay === "political" ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
-      ctx.beginPath();
-      path(f, ctx);
-      ctx.fill();
+      ctx.fill(path2d);
       ctx.strokeStyle = "#1a2a3f";
       ctx.lineWidth = 0.75;
-      ctx.stroke();
+      ctx.stroke(path2d);
     }
     const hover = pickCache.find((e) => e.feature.properties.cca3 === state.hovered);
     if (hover) {
       ctx.save();
       ctx.setLineDash([4, 4]);
-      ctx.lineDashOffset = -(performance.now() / 80) % 8;
       ctx.strokeStyle = "rgba(255,255,255,.8)";
       ctx.lineWidth = 1.2;
       ctx.stroke(hover.path2d);
@@ -1984,7 +2063,6 @@ function createRenderer(canvas, topo2, getState) {
     if (selected) {
       ctx.save();
       ctx.setLineDash([6, 4]);
-      ctx.lineDashOffset = -(performance.now() / 70) % 10;
       ctx.strokeStyle = "#ffd166";
       ctx.lineWidth = 2;
       ctx.stroke(selected.path2d);
@@ -1992,31 +2070,6 @@ function createRenderer(canvas, topo2, getState) {
     }
   }
   return { ctx, world, resize, draw, getPickCache: () => pickCache };
-}
-
-// web/src/map/camera.js
-var CAMERA_LIMITS = { minZoom: 0.55, maxZoom: 7 };
-function clampZoom(zoom) {
-  return Math.max(CAMERA_LIMITS.minZoom, Math.min(CAMERA_LIMITS.maxZoom, zoom));
-}
-function zoomAtPoint(camera, factor, px, py) {
-  const nextZoom = clampZoom(camera.zoom * factor);
-  const zf = nextZoom / camera.zoom;
-  return {
-    zoom: nextZoom,
-    x: px - (px - camera.x) * zf,
-    y: py - (py - camera.y) * zf
-  };
-}
-function fitCameraToBbox(bbox, width, height) {
-  const [[x05, y05], [x12, y12]] = bbox;
-  const bw = Math.max(1, x12 - x05);
-  const bh = Math.max(1, y12 - y05);
-  const margin = 0.22;
-  const zoom = clampZoom(Math.min(width * (1 - margin) / bw, height * (1 - margin) / bh));
-  const cx = (x05 + x12) / 2;
-  const cy = (y05 + y12) / 2;
-  return { zoom, x: width / 2 - cx, y: height / 2 - cy };
 }
 
 // web/src/util/perf.js
@@ -2083,6 +2136,7 @@ controls.newGame.onclick = () => actions.loadState({ ...store.getState(), seed: 
 controls.help.onclick = () => showHelp();
 var renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
+actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
 var dirty = true;
 var mouse = { x: 0, y: 0 };
 var debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
@@ -2092,6 +2146,7 @@ store.subscribe(() => {
 });
 window.addEventListener("resize", () => {
   renderer.resize();
+  actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
   dirty = true;
 });
 var drag = null;
@@ -2108,7 +2163,7 @@ window.addEventListener("mousemove", (e) => {
   if (drag) {
     const dx = e.clientX - drag.x;
     const dy = e.clientY - drag.y;
-    actions.setCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy });
+    actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
   const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
@@ -2120,12 +2175,12 @@ ui.canvas.addEventListener("click", (e) => {
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);
-  if (entry) animateCamera(fitCameraToBbox(entry.bbox, ui.canvas.clientWidth, ui.canvas.clientHeight));
+  if (entry) animateCamera(fitCameraToFeature(entry.feature, ui.canvas.clientWidth, ui.canvas.clientHeight));
 });
 ui.canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
   const factor = Math.exp(-Math.sign(e.deltaY) * 0.08);
-  actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY));
+  actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY, ui.canvas.clientWidth, ui.canvas.clientHeight));
 }, { passive: false });
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeHelp();
@@ -2154,7 +2209,7 @@ function frame(now) {
       acc -= 1;
     }
   }
-  if (dirty || !state.paused) drawNow();
+  if (dirty) drawNow();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -2189,7 +2244,7 @@ function animateCamera(target) {
   function tick(now) {
     const p = Math.min(1, (now - t0) / dur);
     const e = p * (2 - p);
-    actions.setCamera({ zoom: from.zoom + (target.zoom - from.zoom) * e, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e });
+    actions.setCamera(constrainCamera({ zoom: from.zoom + (target.zoom - from.zoom) * e, x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     if (p < 1) requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
