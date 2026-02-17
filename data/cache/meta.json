@@ -1,0 +1,14 @@
+{
+  "version": "0.1.0",
+  "generatedAt": "2026-02-17T22:00:43.814Z",
+  "sources": {
+    "bordersUrl": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson",
+    "restCountriesUrl": "https://restcountries.com/v3.1/all?fields=cca3,name,population,region,subregion,capital,latlng,area,continents,flags",
+    "worldBank": {
+      "gdp": "NY.GDP.MKTP.CD",
+      "gdpPerCapita": "NY.GDP.PCAP.CD",
+      "population": "SP.POP.TOTL",
+      "militaryPercentGdp": "MS.MIL.XPND.GD.ZS"
+    }
+  }
+}

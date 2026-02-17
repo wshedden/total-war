@@ -1,0 +1,4958 @@
+{
+  "C000": {
+    "cca3": "C000",
+    "name": "Country 1",
+    "officialName": "Country 1",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 200000,
+    "indicators": {
+      "gdp": 2400000000,
+      "gdpPerCapita": 12000,
+      "population": 200000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        177.28557285572856,
+        -18.28751932706699
+      ],
+      [
+        -179.79479794797948,
+        -16.02118335720543
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C001": {
+    "cca3": "C001",
+    "name": "Country 2",
+    "officialName": "Country 2",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 213000,
+    "indicators": {
+      "gdp": 2556000000,
+      "gdpPerCapita": 12000,
+      "population": 213000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        29.338493384933855,
+        -11.72039194613879
+      ],
+      [
+        40.315003150031515,
+        -0.9506415531372028
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C002": {
+    "cca3": "C002",
+    "name": "Country 3",
+    "officialName": "Country 3",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 226000,
+    "indicators": {
+      "gdp": 2712000000,
+      "gdpPerCapita": 12000,
+      "population": 226000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -17.062370623706244,
+        21.00015097347564
+      ],
+      [
+        -8.66348663486633,
+        27.657004466859068
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C003": {
+    "cca3": "C003",
+    "name": "Country 4",
+    "officialName": "Country 4",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 239000,
+    "indicators": {
+      "gdp": 2868000000,
+      "gdpPerCapita": 12000,
+      "population": 239000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -140.9972099720997,
+        41.67475431317614
+      ],
+      [
+        -52.64872648726487,
+        83.23383825939032
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C004": {
+    "cca3": "C004",
+    "name": "Country 5",
+    "officialName": "Country 5",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 252000,
+    "indicators": {
+      "gdp": 3024000000,
+      "gdpPerCapita": 12000,
+      "population": 252000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -171.79191791917918,
+        18.916611332773925
+      ],
+      [
+        -66.9660696606966,
+        71.35715453980961
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C005": {
+    "cca3": "C005",
+    "name": "Country 6",
+    "officialName": "Country 6",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 265000,
+    "indicators": {
+      "gdp": 3180000000,
+      "gdpPerCapita": 12000,
+      "population": 265000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        46.46746467464675,
+        40.6626042683836
+      ],
+      [
+        87.36027360273602,
+        55.38447900016541
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C006": {
+    "cca3": "C006",
+    "name": "Country 7",
+    "officialName": "Country 7",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 278000,
+    "indicators": {
+      "gdp": 3336000000,
+      "gdpPerCapita": 12000,
+      "population": 278000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        55.92835928359284,
+        37.145467490659684
+      ],
+      [
+        73.05373053730537,
+        45.58625724547642
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C007": {
+    "cca3": "C007",
+    "name": "Country 8",
+    "officialName": "Country 8",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 291000,
+    "indicators": {
+      "gdp": 3492000000,
+      "gdpPerCapita": 12000,
+      "population": 291000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        141.00081000810007,
+        -10.652387467436299
+      ],
+      [
+        156.02016020160204,
+        -2.4993326751859968
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C008": {
+    "cca3": "C008",
+    "name": "Country 9",
+    "officialName": "Country 9",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 304000,
+    "indicators": {
+      "gdp": 3648000000,
+      "gdpPerCapita": 12000,
+      "population": 304000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        95.2947529475295,
+        -10.359574829059852
+      ],
+      [
+        141.03321033210335,
+        5.479388580921096
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C009": {
+    "cca3": "C009",
+    "name": "Country 10",
+    "officialName": "Country 10",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 317000,
+    "indicators": {
+      "gdp": 3804000000,
+      "gdpPerCapita": 12000,
+      "population": 317000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -73.41373413734136,
+        -55.24961410663144
+      ],
+      [
+        -53.627936279362785,
+        -21.831737042444225
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C010": {
+    "cca3": "C010",
+    "name": "Country 11",
+    "officialName": "Country 11",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 330000,
+    "indicators": {
+      "gdp": 3960000000,
+      "gdpPerCapita": 12000,
+      "population": 330000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -75.64575645756457,
+        -55.61182164774449
+      ],
+      [
+        -66.95886958869588,
+        -17.58002983087421
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C011": {
+    "cca3": "C011",
+    "name": "Country 12",
+    "officialName": "Country 12",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 343000,
+    "indicators": {
+      "gdp": 4116000000,
+      "gdpPerCapita": 12000,
+      "population": 343000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        12.180721807218077,
+        -13.25723515796426
+      ],
+      [
+        31.174511745117456,
+        5.255970845281269
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C012": {
+    "cca3": "C012",
+    "name": "Country 13",
+    "officialName": "Country 13",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 356000,
+    "indicators": {
+      "gdp": 4272000000,
+      "gdpPerCapita": 12000,
+      "population": 356000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        40.9810098100981,
+        -1.6835194283799666
+      ],
+      [
+        51.13311133111333,
+        12.024512700005985
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C013": {
+    "cca3": "C013",
+    "name": "Country 14",
+    "officialName": "Country 14",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 369000,
+    "indicators": {
+      "gdp": 4428000000,
+      "gdpPerCapita": 12000,
+      "population": 369000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        33.89253892538926,
+        -4.6759630390709646
+      ],
+      [
+        41.855818558185604,
+        5.506469518574406
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C014": {
+    "cca3": "C014",
+    "name": "Country 15",
+    "officialName": "Country 15",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 382000,
+    "indicators": {
+      "gdp": 4584000000,
+      "gdpPerCapita": 12000,
+      "population": 382000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        21.93681936819368,
+        8.229796311335619
+      ],
+      [
+        38.41058410584105,
+        22.012711715713152
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C015": {
+    "cca3": "C015",
+    "name": "Country 16",
+    "officialName": "Country 16",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 395000,
+    "indicators": {
+      "gdp": 4740000000,
+      "gdpPerCapita": 12000,
+      "population": 395000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        13.541535415354161,
+        7.422445857546251
+      ],
+      [
+        23.88803888038882,
+        23.410354424620422
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C016": {
+    "cca3": "C016",
+    "name": "Country 17",
+    "officialName": "Country 17",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 408000,
+    "indicators": {
+      "gdp": 4896000000,
+      "gdpPerCapita": 12000,
+      "population": 408000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -74.45774457744577,
+        18.03140318323129
+      ],
+      [
+        -71.62451624516245,
+        19.915220908739812
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C017": {
+    "cca3": "C017",
+    "name": "Country 18",
+    "officialName": "Country 18",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 421000,
+    "indicators": {
+      "gdp": 5052000000,
+      "gdpPerCapita": 12000,
+      "population": 421000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -71.94491944919449,
+        17.598108180778297
+      ],
+      [
+        -68.31968319683196,
+        19.88475485387984
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C018": {
+    "cca3": "C018",
+    "name": "Country 19",
+    "officialName": "Country 19",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 434000,
+    "indicators": {
+      "gdp": 5208000000,
+      "gdpPerCapita": 12000,
+      "population": 434000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        19.661596615966175,
+        41.151753704746554
+      ],
+      [
+        -169.89829898298984,
+        81.2501595762852
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C019": {
+    "cca3": "C019",
+    "name": "Country 20",
+    "officialName": "Country 20",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 447000,
+    "indicators": {
+      "gdp": 5364000000,
+      "gdpPerCapita": 12000,
+      "population": 447000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -78.97938979389794,
+        23.70993729741018
+      ],
+      [
+        -76.99936999369993,
+        27.03920007016424
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C020": {
+    "cca3": "C020",
+    "name": "Country 21",
+    "officialName": "Country 21",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 460000,
+    "indicators": {
+      "gdp": 5520000000,
+      "gdpPerCapita": 12000,
+      "population": 460000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -61.19881198811987,
+        -52.299484461023745
+      ],
+      [
+        -57.749977499775,
+        -51.09946041126135
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C021": {
+    "cca3": "C021",
+    "name": "Country 22",
+    "officialName": "Country 22",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 473000,
+    "indicators": {
+      "gdp": 5676000000,
+      "gdpPerCapita": 12000,
+      "population": 473000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        4.991449914499157,
+        58.07903229666999
+      ],
+      [
+        31.29331293312933,
+        80.65776406511901
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C022": {
+    "cca3": "C022",
+    "name": "Country 23",
+    "officialName": "Country 23",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 486000,
+    "indicators": {
+      "gdp": 5832000000,
+      "gdpPerCapita": 12000,
+      "population": 486000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -73.29853298532984,
+        60.03732260072513
+      ],
+      [
+        -12.209522095220933,
+        83.64513
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C023": {
+    "cca3": "C023",
+    "name": "Country 24",
+    "officialName": "Country 24",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 499000,
+    "indicators": {
+      "gdp": 5988000000,
+      "gdpPerCapita": 12000,
+      "population": 499000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        68.71928719287195,
+        -49.77418702485238
+      ],
+      [
+        70.55890558905591,
+        -48.62493973318995
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C024": {
+    "cca3": "C024",
+    "name": "Country 25",
+    "officialName": "Country 25",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 512000,
+    "indicators": {
+      "gdp": 6144000000,
+      "gdpPerCapita": 12000,
+      "population": 512000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        124.969849698497,
+        -9.393123866557275
+      ],
+      [
+        127.33507335073352,
+        -8.272650071151489
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C025": {
+    "cca3": "C025",
+    "name": "Country 26",
+    "officialName": "Country 26",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 525000,
+    "indicators": {
+      "gdp": 6300000000,
+      "gdpPerCapita": 12000,
+      "population": 525000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        16.34596345963459,
+        -34.818739205810736
+      ],
+      [
+        32.83052830528305,
+        -22.090698508754024
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C026": {
+    "cca3": "C026",
+    "name": "Country 27",
+    "officialName": "Country 27",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 538000,
+    "indicators": {
+      "gdp": 6456000000,
+      "gdpPerCapita": 12000,
+      "population": 538000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        26.998469984699852,
+        -30.644889689994002
+      ],
+      [
+        29.324093240932427,
+        -28.64767053806223
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C027": {
+    "cca3": "C027",
+    "name": "Country 28",
+    "officialName": "Country 28",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 551000,
+    "indicators": {
+      "gdp": 6612000000,
+      "gdpPerCapita": 12000,
+      "population": 551000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -117.1289712897129,
+        14.539654784557356
+      ],
+      [
+        -86.8130681306813,
+        32.721119301549805
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C028": {
+    "cca3": "C028",
+    "name": "Country 29",
+    "officialName": "Country 29",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 564000,
+    "indicators": {
+      "gdp": 6768000000,
+      "gdpPerCapita": 12000,
+      "population": 564000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -58.42678426784268,
+        -34.95245133547397
+      ],
+      [
+        -53.21033210332102,
+        -30.110041171341088
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C029": {
+    "cca3": "C029",
+    "name": "Country 30",
+    "officialName": "Country 30",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 577000,
+    "indicators": {
+      "gdp": 6924000000,
+      "gdpPerCapita": 12000,
+      "population": 577000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -73.98613986139861,
+        -33.76766031314156
+      ],
+      [
+        -34.73134731347312,
+        5.244122935057945
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C030": {
+    "cca3": "C030",
+    "name": "Country 31",
+    "officialName": "Country 31",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 590000,
+    "indicators": {
+      "gdp": 7080000000,
+      "gdpPerCapita": 12000,
+      "population": 590000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -69.59049590495904,
+        -22.872660583493406
+      ],
+      [
+        -57.4979749797498,
+        -9.76210164208365
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C031": {
+    "cca3": "C031",
+    "name": "Country 32",
+    "officialName": "Country 32",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 603000,
+    "indicators": {
+      "gdp": 7236000000,
+      "gdpPerCapita": 12000,
+      "population": 603000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -81.40941409414094,
+        -18.348451436786945
+      ],
+      [
+        -68.66528665286653,
+        -0.0569706105779062
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C032": {
+    "cca3": "C032",
+    "name": "Country 33",
+    "officialName": "Country 33",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 616000,
+    "indicators": {
+      "gdp": 7392000000,
+      "gdpPerCapita": 12000,
+      "population": 616000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -78.99018990189902,
+        -4.298522470527928
+      ],
+      [
+        -66.8760687606876,
+        12.437496999218993
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C033": {
+    "cca3": "C033",
+    "name": "Country 34",
+    "officialName": "Country 34",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 629000,
+    "indicators": {
+      "gdp": 7548000000,
+      "gdpPerCapita": 12000,
+      "population": 629000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -82.96462964629646,
+        7.221031383749732
+      ],
+      [
+        -77.24417244172442,
+        9.610924131654542
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C034": {
+    "cca3": "C034",
+    "name": "Country 35",
+    "officialName": "Country 35",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 642000,
+    "indicators": {
+      "gdp": 7704000000,
+      "gdpPerCapita": 12000,
+      "population": 642000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -85.94185941859418,
+        8.224718635525619
+      ],
+      [
+        -82.5470254702547,
+        11.217162246216617
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C035": {
+    "cca3": "C035",
+    "name": "Country 36",
+    "officialName": "Country 36",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 655000,
+    "indicators": {
+      "gdp": 7860000000,
+      "gdpPerCapita": 12000,
+      "population": 655000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -87.66987669876698,
+        10.726320251250328
+      ],
+      [
+        -83.14823148231481,
+        15.016956310696983
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C036": {
+    "cca3": "C036",
+    "name": "Country 37",
+    "officialName": "Country 37",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 668000,
+    "indicators": {
+      "gdp": 8016000000,
+      "gdpPerCapita": 12000,
+      "population": 668000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -89.35469354693547,
+        12.984193428095239
+      ],
+      [
+        -83.14823148231481,
+        16.00541053504287
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C037": {
+    "cca3": "C037",
+    "name": "Country 38",
+    "officialName": "Country 38",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 681000,
+    "indicators": {
+      "gdp": 8172000000,
+      "gdpPerCapita": 12000,
+      "population": 681000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -90.09630096300963,
+        13.148371612618433
+      ],
+      [
+        -87.72387723877239,
+        14.42456079953078
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C038": {
+    "cca3": "C038",
+    "name": "Country 39",
+    "officialName": "Country 39",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 694000,
+    "indicators": {
+      "gdp": 8328000000,
+      "gdpPerCapita": 12000,
+      "population": 694000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -92.22752227522275,
+        13.73568944797465
+      ],
+      [
+        -88.22428224282243,
+        17.819863682851967
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C039": {
+    "cca3": "C039",
+    "name": "Country 40",
+    "officialName": "Country 40",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 707000,
+    "indicators": {
+      "gdp": 8484000000,
+      "gdpPerCapita": 12000,
+      "population": 707000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -89.22869228692286,
+        15.886931432809632
+      ],
+      [
+        -88.10548105481054,
+        18.500241916354256
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C040": {
+    "cca3": "C040",
+    "name": "Country 41",
+    "officialName": "Country 41",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 720000,
+    "indicators": {
+      "gdp": 8640000000,
+      "gdpPerCapita": 12000,
+      "population": 720000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -73.30573305733057,
+        0.7249914641614765
+      ],
+      [
+        -59.75879758797588,
+        12.16160994687587
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C041": {
+    "cca3": "C041",
+    "name": "Country 42",
+    "officialName": "Country 42",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 733000,
+    "indicators": {
+      "gdp": 8796000000,
+      "gdpPerCapita": 12000,
+      "population": 733000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -61.411214112141124,
+        1.26830277583106
+      ],
+      [
+        -56.540365403654036,
+        8.366893558205504
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C042": {
+    "cca3": "C042",
+    "name": "Country 43",
+    "officialName": "Country 43",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 746000,
+    "indicators": {
+      "gdp": 8952000000,
+      "gdpPerCapita": 12000,
+      "population": 746000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -58.04518045180451,
+        1.8183843219139533
+      ],
+      [
+        -53.95913959139591,
+        6.026085009797342
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C043": {
+    "cca3": "C043",
+    "name": "Country 44",
+    "officialName": "Country 44",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 759000,
+    "indicators": {
+      "gdp": 9108000000,
+      "gdpPerCapita": 12000,
+      "population": 759000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -54.52434524345243,
+        2.0536499677771047
+      ],
+      [
+        9.55989559895599,
+        51.148004816025406
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C044": {
+    "cca3": "C044",
+    "name": "Country 45",
+    "officialName": "Country 45",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 772000,
+    "indicators": {
+      "gdp": 9264000000,
+      "gdpPerCapita": 12000,
+      "population": 772000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -80.96660966609666,
+        -4.958620325827411
+      ],
+      [
+        -75.23535235352354,
+        1.3817042022542978
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C045": {
+    "cca3": "C045",
+    "name": "Country 46",
+    "officialName": "Country 46",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 785000,
+    "indicators": {
+      "gdp": 9420000000,
+      "gdpPerCapita": 12000,
+      "population": 785000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -67.24327243272432,
+        17.946775253064686
+      ],
+      [
+        -65.59085590855908,
+        18.52055261959424
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C046": {
+    "cca3": "C046",
+    "name": "Country 47",
+    "officialName": "Country 47",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 798000,
+    "indicators": {
+      "gdp": 9576000000,
+      "gdpPerCapita": 12000,
+      "population": 798000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -78.33858338583386,
+        17.70135425558155
+      ],
+      [
+        -76.20016200162001,
+        18.523937736800903
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C047": {
+    "cca3": "C047",
+    "name": "Country 48",
+    "officialName": "Country 48",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 811000,
+    "indicators": {
+      "gdp": 9732000000,
+      "gdpPerCapita": 12000,
+      "population": 811000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -84.97344973449734,
+        19.855981357623193
+      ],
+      [
+        -74.1769417694177,
+        23.18862924758392
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C048": {
+    "cca3": "C048",
+    "name": "Country 49",
+    "officialName": "Country 49",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 824000,
+    "indicators": {
+      "gdp": 9888000000,
+      "gdpPerCapita": 12000,
+      "population": 824000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        25.26325263252633,
+        -22.271802279310542
+      ],
+      [
+        32.848528485284874,
+        -15.508338100395832
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C049": {
+    "cca3": "C049",
+    "name": "Country 50",
+    "officialName": "Country 50",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 837000,
+    "indicators": {
+      "gdp": 10044000000,
+      "gdpPerCapita": 12000,
+      "population": 837000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        19.895598955989556,
+        -26.82817003948032
+      ],
+      [
+        29.432094320943207,
+        -17.661272643834153
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C050": {
+    "cca3": "C050",
+    "name": "Country 51",
+    "officialName": "Country 51",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 850000,
+    "indicators": {
+      "gdp": 10200000000,
+      "gdpPerCapita": 12000,
+      "population": 850000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        11.734317343173444,
+        -29.04542180984525
+      ],
+      [
+        25.083250832508327,
+        -16.94193523741805
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C051": {
+    "cca3": "C051",
+    "name": "Country 52",
+    "officialName": "Country 52",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 863000,
+    "indicators": {
+      "gdp": 10356000000,
+      "gdpPerCapita": 12000,
+      "population": 863000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -17.623976239762385,
+        12.332558365812403
+      ],
+      [
+        -11.467914679146787,
+        16.597806046209072
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C052": {
+    "cca3": "C052",
+    "name": "Country 53",
+    "officialName": "Country 53",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 876000,
+    "indicators": {
+      "gdp": 10512000000,
+      "gdpPerCapita": 12000,
+      "population": 876000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -12.169921699216985,
+        10.096688450810817
+      ],
+      [
+        4.271442714427138,
+        24.974278574099202
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C053": {
+    "cca3": "C053",
+    "name": "Country 54",
+    "officialName": "Country 54",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 889000,
+    "indicators": {
+      "gdp": 10668000000,
+      "gdpPerCapita": 12000,
+      "population": 889000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -17.062370623706244,
+        14.617512480310623
+      ],
+      [
+        -4.923049230492296,
+        27.396329935467307
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C054": {
+    "cca3": "C054",
+    "name": "Country 55",
+    "officialName": "Country 55",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 902000,
+    "indicators": {
+      "gdp": 10824000000,
+      "gdpPerCapita": 12000,
+      "population": 902000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        0.7722077220772405,
+        6.142871553427241
+      ],
+      [
+        3.796237962379621,
+        12.23608252542249
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C055": {
+    "cca3": "C055",
+    "name": "Country 56",
+    "officialName": "Country 56",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 915000,
+    "indicators": {
+      "gdp": 10980000000,
+      "gdpPerCapita": 12000,
+      "population": 915000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        0.2970029700296948,
+        11.660612600289596
+      ],
+      [
+        15.90315903159032,
+        23.471286534340365
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C056": {
+    "cca3": "C056",
+    "name": "Country 57",
+    "officialName": "Country 57",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 928000,
+    "indicators": {
+      "gdp": 11136000000,
+      "gdpPerCapita": 12000,
+      "population": 928000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        2.691026910269102,
+        4.240435683282072
+      ],
+      [
+        14.578345783457848,
+        13.866016460431211
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C057": {
+    "cca3": "C057",
+    "name": "Country 58",
+    "officialName": "Country 58",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 941000,
+    "indicators": {
+      "gdp": 11292000000,
+      "gdpPerCapita": 12000,
+      "population": 941000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        8.487084870848719,
+        1.726986157334025
+      ],
+      [
+        16.01116011160113,
+        12.858944091448663
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C058": {
+    "cca3": "C058",
+    "name": "Country 59",
+    "officialName": "Country 59",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 954000,
+    "indicators": {
+      "gdp": 11448000000,
+      "gdpPerCapita": 12000,
+      "population": 954000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -0.04860048600485811,
+        5.929609169407414
+      ],
+      [
+        1.8666186661866675,
+        11.019132889626775
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C059": {
+    "cca3": "C059",
+    "name": "Country 60",
+    "officialName": "Country 60",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 967000,
+    "indicators": {
+      "gdp": 11604000000,
+      "gdpPerCapita": 12000,
+      "population": 967000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -3.2454324543245434,
+        4.710966975008361
+      ],
+      [
+        1.0602106021060251,
+        11.09868314398338
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C060": {
+    "cca3": "C060",
+    "name": "Country 61",
+    "officialName": "Country 61",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 980000,
+    "indicators": {
+      "gdp": 11760000000,
+      "gdpPerCapita": 12000,
+      "population": 980000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -8.602286022860227,
+        4.3386040822753245
+      ],
+      [
+        -2.5614256142561374,
+        10.524905777453824
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C061": {
+    "cca3": "C061",
+    "name": "Country 62",
+    "officialName": "Country 62",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 993000,
+    "indicators": {
+      "gdp": 11916000000,
+      "gdpPerCapita": 12000,
+      "population": 993000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -15.129151291512898,
+        7.309044431122999
+      ],
+      [
+        -7.831878318783168,
+        12.586442156312216
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C062": {
+    "cca3": "C062",
+    "name": "Country 63",
+    "officialName": "Country 63",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1006000,
+    "indicators": {
+      "gdp": 12072000000,
+      "gdpPerCapita": 12000,
+      "population": 1006000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -16.677166771667714,
+        11.041136151470084
+      ],
+      [
+        -13.699936999369982,
+        12.628756121395512
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C063": {
+    "cca3": "C063",
+    "name": "Country 64",
+    "officialName": "Country 64",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1019000,
+    "indicators": {
+      "gdp": 12228000000,
+      "gdpPerCapita": 12000,
+      "population": 1019000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -11.439114391143903,
+        4.355529668308648
+      ],
+      [
+        -7.54027540275402,
+        8.541227094348699
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C064": {
+    "cca3": "C064",
+    "name": "Country 65",
+    "officialName": "Country 65",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1032000,
+    "indicators": {
+      "gdp": 12384000000,
+      "gdpPerCapita": 12000,
+      "population": 1032000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -13.24633246332462,
+        6.786043822693415
+      ],
+      [
+        -10.22950229502294,
+        10.047604251314198
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C065": {
+    "cca3": "C065",
+    "name": "Country 66",
+    "officialName": "Country 66",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1045000,
+    "indicators": {
+      "gdp": 12540000000,
+      "gdpPerCapita": 12000,
+      "population": 1045000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -5.47025470254701,
+        9.610924131654542
+      ],
+      [
+        2.1762217622176365,
+        15.116817268293559
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C066": {
+    "cca3": "C066",
+    "name": "Country 67",
+    "officialName": "Country 67",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1058000,
+    "indicators": {
+      "gdp": 12696000000,
+      "gdpPerCapita": 12000,
+      "population": 1058000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        14.459544595445948,
+        2.2669123517969467
+      ],
+      [
+        27.37287372873729,
+        11.142689667670012
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C067": {
+    "cca3": "C067",
+    "name": "Country 68",
+    "officialName": "Country 68",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1071000,
+    "indicators": {
+      "gdp": 12852000000,
+      "gdpPerCapita": 12000,
+      "population": 1071000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        11.09351093510935,
+        -5.0381705801840155
+      ],
+      [
+        18.45198451984521,
+        3.7275904264724744
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C068": {
+    "cca3": "C068",
+    "name": "Country 69",
+    "officialName": "Country 69",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1084000,
+    "indicators": {
+      "gdp": 13008000000,
+      "gdpPerCapita": 12000,
+      "population": 1084000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        8.796687966879688,
+        -3.978628894498172
+      ],
+      [
+        14.427144271442728,
+        2.3261519029135656
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C069": {
+    "cca3": "C069",
+    "name": "Country 70",
+    "officialName": "Country 70",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1097000,
+    "indicators": {
+      "gdp": 13164000000,
+      "gdpPerCapita": 12000,
+      "population": 1097000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        9.304293042930425,
+        1.009341309521261
+      ],
+      [
+        11.284312843128447,
+        2.2838379378302562
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C070": {
+    "cca3": "C070",
+    "name": "Country 71",
+    "officialName": "Country 71",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1110000,
+    "indicators": {
+      "gdp": 13320000000,
+      "gdpPerCapita": 12000,
+      "population": 1110000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        21.88641886418864,
+        -17.96085551662391
+      ],
+      [
+        33.485734857348575,
+        -8.238798899084841
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C071": {
+    "cca3": "C071",
+    "name": "Country 72",
+    "officialName": "Country 72",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1123000,
+    "indicators": {
+      "gdp": 13476000000,
+      "gdpPerCapita": 12000,
+      "population": 1123000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        32.68652686526866,
+        -16.80145287334149
+      ],
+      [
+        35.771757717577174,
+        -9.230638240637404
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C072": {
+    "cca3": "C072",
+    "name": "Country 73",
+    "officialName": "Country 73",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1136000,
+    "indicators": {
+      "gdp": 13632000000,
+      "gdpPerCapita": 12000,
+      "population": 1136000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        30.18090180901811,
+        -26.741849550710384
+      ],
+      [
+        40.775807758077576,
+        -10.317260863976557
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C073": {
+    "cca3": "C073",
+    "name": "Country 74",
+    "officialName": "Country 74",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1149000,
+    "indicators": {
+      "gdp": 13788000000,
+      "gdpPerCapita": 12000,
+      "population": 1149000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        30.677706777067783,
+        -27.28516086237996
+      ],
+      [
+        32.07092070920709,
+        -25.66030460318123
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C074": {
+    "cca3": "C074",
+    "name": "Country 75",
+    "officialName": "Country 75",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1162000,
+    "indicators": {
+      "gdp": 13944000000,
+      "gdpPerCapita": 12000,
+      "population": 1162000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        11.640716407164092,
+        -17.930389461763937
+      ],
+      [
+        24.078840788407888,
+        -4.437312276001151
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C075": {
+    "cca3": "C075",
+    "name": "Country 76",
+    "officialName": "Country 76",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1175000,
+    "indicators": {
+      "gdp": 14100000000,
+      "gdpPerCapita": 12000,
+      "population": 1175000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        29.02529025290255,
+        -4.499936944324432
+      ],
+      [
+        30.753307533075343,
+        -2.3486949594894497
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C076": {
+    "cca3": "C076",
+    "name": "Country 77",
+    "officialName": "Country 77",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1188000,
+    "indicators": {
+      "gdp": 14256000000,
+      "gdpPerCapita": 12000,
+      "population": 1188000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        34.2669426694267,
+        29.501872838012318
+      ],
+      [
+        35.83655836558367,
+        33.27797108204604
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C077": {
+    "cca3": "C077",
+    "name": "Country 78",
+    "officialName": "Country 78",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1201000,
+    "indicators": {
+      "gdp": 14412000000,
+      "gdpPerCapita": 12000,
+      "population": 1201000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        35.127351273512744,
+        33.088404518472856
+      ],
+      [
+        36.610566105661064,
+        34.6455584335383
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C078": {
+    "cca3": "C078",
+    "name": "Country 79",
+    "officialName": "Country 79",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1214000,
+    "indicators": {
+      "gdp": 14568000000,
+      "gdpPerCapita": 12000,
+      "population": 1214000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        43.25263252632527,
+        -25.601065052064612
+      ],
+      [
+        50.477904779047805,
+        -12.040285522168546
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C079": {
+    "cca3": "C079",
+    "name": "Country 80",
+    "officialName": "Country 80",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1227000,
+    "indicators": {
+      "gdp": 14724000000,
+      "gdpPerCapita": 12000,
+      "population": 1227000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        34.92574925749258,
+        31.353531950057544
+      ],
+      [
+        35.54495544955449,
+        32.53324529657995
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C080": {
+    "cca3": "C080",
+    "name": "Country 81",
+    "officialName": "Country 81",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1240000,
+    "indicators": {
+      "gdp": 14880000000,
+      "gdpPerCapita": 12000,
+      "population": 1240000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -16.842768427684263,
+        13.129753467981786
+      ],
+      [
+        -13.843938439384374,
+        13.876171812051197
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C081": {
+    "cca3": "C081",
+    "name": "Country 82",
+    "officialName": "Country 82",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1253000,
+    "indicators": {
+      "gdp": 15036000000,
+      "gdpPerCapita": 12000,
+      "population": 1253000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        7.525875258752592,
+        30.307530733198362
+      ],
+      [
+        11.489514895148972,
+        37.35026708166285
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C082": {
+    "cca3": "C082",
+    "name": "Country 83",
+    "officialName": "Country 83",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1266000,
+    "indicators": {
+      "gdp": 15192000000,
+      "gdpPerCapita": 12000,
+      "population": 1266000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -8.685086850868515,
+        19.057093696850487
+      ],
+      [
+        12.000720007200073,
+        37.118386553006374
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C083": {
+    "cca3": "C083",
+    "name": "Country 84",
+    "officialName": "Country 84",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1279000,
+    "indicators": {
+      "gdp": 15348000000,
+      "gdpPerCapita": 12000,
+      "population": 1279000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        34.92214922149222,
+        29.197212289412562
+      ],
+      [
+        39.19539195391954,
+        33.379524598245965
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C084": {
+    "cca3": "C084",
+    "name": "Country 85",
+    "officialName": "Country 85",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1292000,
+    "indicators": {
+      "gdp": 15504000000,
+      "gdpPerCapita": 12000,
+      "population": 1292000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        51.57951579515796,
+        22.496372778821126
+      ],
+      [
+        56.39636396363966,
+        26.055823521628355
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C085": {
+    "cca3": "C085",
+    "name": "Country 86",
+    "officialName": "Country 86",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1305000,
+    "indicators": {
+      "gdp": 15660000000,
+      "gdpPerCapita": 12000,
+      "population": 1305000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        50.74430744307443,
+        24.556216599076194
+      ],
+      [
+        51.608316083160844,
+        26.115063072744974
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C086": {
+    "cca3": "C086",
+    "name": "Country 87",
+    "officialName": "Country 87",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1318000,
+    "indicators": {
+      "gdp": 15816000000,
+      "gdpPerCapita": 12000,
+      "population": 1318000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        46.56826568265683,
+        28.525266523889755
+      ],
+      [
+        48.41508415084152,
+        30.05872461850855
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C087": {
+    "cca3": "C087",
+    "name": "Country 88",
+    "officialName": "Country 88",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1331000,
+    "indicators": {
+      "gdp": 15972000000,
+      "gdpPerCapita": 12000,
+      "population": 1331000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        38.79218792187922,
+        29.09904389041931
+      ],
+      [
+        48.56628566285664,
+        37.385810812332835
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C088": {
+    "cca3": "C088",
+    "name": "Country 89",
+    "officialName": "Country 89",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1344000,
+    "indicators": {
+      "gdp": 16128000000,
+      "gdpPerCapita": 12000,
+      "population": 1344000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        52.00072000720007,
+        16.650275362912367
+      ],
+      [
+        59.80919809198093,
+        26.396027800898082
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C089": {
+    "cca3": "C089",
+    "name": "Country 90",
+    "officialName": "Country 90",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1357000,
+    "indicators": {
+      "gdp": 16284000000,
+      "gdpPerCapita": 12000,
+      "population": 1357000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        166.62946629466296,
+        -16.598345840941647
+      ],
+      [
+        167.84627846278465,
+        -14.62651506805986
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C090": {
+    "cca3": "C090",
+    "name": "Country 91",
+    "officialName": "Country 91",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1370000,
+    "indicators": {
+      "gdp": 16440000000,
+      "gdpPerCapita": 12000,
+      "population": 1370000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        102.34722347223476,
+        10.485976929577191
+      ],
+      [
+        107.61407614076143,
+        14.570120839417328
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C091": {
+    "cca3": "C091",
+    "name": "Country 92",
+    "officialName": "Country 92",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1383000,
+    "indicators": {
+      "gdp": 16596000000,
+      "gdpPerCapita": 12000,
+      "population": 1383000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        97.37557375573755,
+        5.6909584063376
+      ],
+      [
+        105.58725587255873,
+        20.417910813929424
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C092": {
+    "cca3": "C092",
+    "name": "Country 93",
+    "officialName": "Country 93",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1396000,
+    "indicators": {
+      "gdp": 16752000000,
+      "gdpPerCapita": 12000,
+      "population": 1396000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        100.11520115201154,
+        13.881249487861197
+      ],
+      [
+        107.56367563675639,
+        22.46421416535783
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C093": {
+    "cca3": "C093",
+    "name": "Country 94",
+    "officialName": "Country 94",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1409000,
+    "indicators": {
+      "gdp": 16908000000,
+      "gdpPerCapita": 12000,
+      "population": 1409000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        92.30312303123031,
+        9.932510266287622
+      ],
+      [
+        101.18081180811811,
+        28.335699960316575
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C094": {
+    "cca3": "C094",
+    "name": "Country 95",
+    "officialName": "Country 95",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1422000,
+    "indicators": {
+      "gdp": 17064000000,
+      "gdpPerCapita": 12000,
+      "population": 1422000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        102.17082170821709,
+        8.600466645465332
+      ],
+      [
+        109.33489334893352,
+        23.352807432107127
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C095": {
+    "cca3": "C095",
+    "name": "Country 96",
+    "officialName": "Country 96",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1435000,
+    "indicators": {
+      "gdp": 17220000000,
+      "gdpPerCapita": 12000,
+      "population": 1435000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        124.26424264242644,
+        37.66846809908927
+      ],
+      [
+        130.78030780307802,
+        42.98479467215512
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C096": {
+    "cca3": "C096",
+    "name": "Country 97",
+    "officialName": "Country 97",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1448000,
+    "indicators": {
+      "gdp": 17376000000,
+      "gdpPerCapita": 12000,
+      "population": 1448000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        126.11826118261183,
+        34.389982084435175
+      ],
+      [
+        129.46989469894697,
+        38.612915799748535
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C097": {
+    "cca3": "C097",
+    "name": "Country 98",
+    "officialName": "Country 98",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1461000,
+    "indicators": {
+      "gdp": 17532000000,
+      "gdpPerCapita": 12000,
+      "population": 1461000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        87.7526775267753,
+        41.59689661742287
+      ],
+      [
+        119.77139771397714,
+        52.0467534343947
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C098": {
+    "cca3": "C098",
+    "name": "Country 99",
+    "officialName": "Country 99",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1474000,
+    "indicators": {
+      "gdp": 17688000000,
+      "gdpPerCapita": 12000,
+      "population": 1474000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        68.17568175681757,
+        7.96575716921582
+      ],
+      [
+        97.4007740077401,
+        35.49353029380764
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C099": {
+    "cca3": "C099",
+    "name": "Country 100",
+    "officialName": "Country 100",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1487000,
+    "indicators": {
+      "gdp": 17844000000,
+      "gdpPerCapita": 12000,
+      "population": 1487000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        88.0838808388084,
+        20.6701020458259
+      ],
+      [
+        92.67392673926742,
+        26.44680455899804
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C100": {
+    "cca3": "C100",
+    "name": "Country 101",
+    "officialName": "Country 101",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1500000,
+    "indicators": {
+      "gdp": 18000000000,
+      "gdpPerCapita": 12000,
+      "population": 1500000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        88.81468814688145,
+        26.7193064941345
+      ],
+      [
+        92.10512105121052,
+        28.296771112439927
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C101": {
+    "cca3": "C101",
+    "name": "Country 102",
+    "officialName": "Country 102",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1513000,
+    "indicators": {
+      "gdp": 18156000000,
+      "gdpPerCapita": 12000,
+      "population": 1513000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        80.08820088200883,
+        26.39772035950142
+      ],
+      [
+        88.17388173881739,
+        30.422624718224938
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C102": {
+    "cca3": "C102",
+    "name": "Country 103",
+    "officialName": "Country 103",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1526000,
+    "indicators": {
+      "gdp": 18312000000,
+      "gdpPerCapita": 12000,
+      "population": 1526000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        60.8748087480875,
+        23.69131915277353
+      ],
+      [
+        77.83817838178385,
+        37.13361958043636
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C103": {
+    "cca3": "C103",
+    "name": "Country 104",
+    "officialName": "Country 104",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1539000,
+    "indicators": {
+      "gdp": 18468000000,
+      "gdpPerCapita": 12000,
+      "population": 1539000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        60.52920529205292,
+        29.31907650885246
+      ],
+      [
+        75.15975159751599,
+        38.485973904498636
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C104": {
+    "cca3": "C104",
+    "name": "Country 105",
+    "officialName": "Country 105",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1552000,
+    "indicators": {
+      "gdp": 18624000000,
+      "gdpPerCapita": 12000,
+      "population": 1552000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        67.44127441274415,
+        36.73756086725666
+      ],
+      [
+        74.97974979749799,
+        40.960494582570036
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C105": {
+    "cca3": "C105",
+    "name": "Country 106",
+    "officialName": "Country 106",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1565000,
+    "indicators": {
+      "gdp": 18780000000,
+      "gdpPerCapita": 12000,
+      "population": 1565000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        69.46449464494646,
+        39.27978388946134
+      ],
+      [
+        80.26100261002608,
+        43.29791801377155
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C106": {
+    "cca3": "C106",
+    "name": "Country 107",
+    "officialName": "Country 107",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1578000,
+    "indicators": {
+      "gdp": 18936000000,
+      "gdpPerCapita": 12000,
+      "population": 1578000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        52.50112501125011,
+        35.27011255816781
+      ],
+      [
+        66.54486544865449,
+        42.75122158489529
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C107": {
+    "cca3": "C107",
+    "name": "Country 108",
+    "officialName": "Country 108",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1591000,
+    "indicators": {
+      "gdp": 19092000000,
+      "gdpPerCapita": 12000,
+      "population": 1591000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        44.109441094410954,
+        25.077524648902454
+      ],
+      [
+        63.315633156331586,
+        39.713078891914336
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C108": {
+    "cca3": "C108",
+    "name": "Country 109",
+    "officialName": "Country 109",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1604000,
+    "indicators": {
+      "gdp": 19248000000,
+      "gdpPerCapita": 12000,
+      "population": 1604000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        35.69975699756998,
+        32.3132126781468
+      ],
+      [
+        42.34902349023491,
+        37.23009542082629
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C109": {
+    "cca3": "C109",
+    "name": "Country 110",
+    "officialName": "Country 110",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1617000,
+    "indicators": {
+      "gdp": 19404000000,
+      "gdpPerCapita": 12000,
+      "population": 1617000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        43.5838358383584,
+        38.74155025360177
+      ],
+      [
+        46.507065070650725,
+        41.24822954513648
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C110": {
+    "cca3": "C110",
+    "name": "Country 111",
+    "officialName": "Country 111",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1630000,
+    "indicators": {
+      "gdp": 19560000000,
+      "gdpPerCapita": 12000,
+      "population": 1630000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        11.028710287102882,
+        55.362475738322104
+      ],
+      [
+        23.902439024390247,
+        69.10605159737804
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C111": {
+    "cca3": "C111",
+    "name": "Country 112",
+    "officialName": "Country 112",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1643000,
+    "indicators": {
+      "gdp": 19716000000,
+      "gdpPerCapita": 12000,
+      "population": 1643000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        23.20043200432005,
+        51.318953234961924
+      ],
+      [
+        32.69372693726939,
+        56.169826192111486
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C112": {
+    "cca3": "C112",
+    "name": "Country 113",
+    "officialName": "Country 113",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1656000,
+    "indicators": {
+      "gdp": 19872000000,
+      "gdpPerCapita": 12000,
+      "population": 1656000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        22.084420844208438,
+        45.293444607099985
+      ],
+      [
+        40.081000810008106,
+        52.33448839696115
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C113": {
+    "cca3": "C113",
+    "name": "Country 114",
+    "officialName": "Country 114",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1669000,
+    "indicators": {
+      "gdp": 20028000000,
+      "gdpPerCapita": 12000,
+      "population": 1669000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        14.074340743407447,
+        49.02722888605041
+      ],
+      [
+        24.028440284402848,
+        54.85132304011586
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C114": {
+    "cca3": "C114",
+    "name": "Country 115",
+    "officialName": "Country 115",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1682000,
+    "indicators": {
+      "gdp": 20184000000,
+      "gdpPerCapita": 12000,
+      "population": 1682000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        9.480694806948065,
+        46.43253654714243
+      ],
+      [
+        16.979569795697955,
+        49.03907679627372
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C115": {
+    "cca3": "C115",
+    "name": "Country 116",
+    "officialName": "Country 116",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1695000,
+    "indicators": {
+      "gdp": 20340000000,
+      "gdpPerCapita": 12000,
+      "population": 1695000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        16.201962019620197,
+        45.758898223016274
+      ],
+      [
+        22.710827108271076,
+        48.62439993845737
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C116": {
+    "cca3": "C116",
+    "name": "Country 117",
+    "officialName": "Country 117",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1708000,
+    "indicators": {
+      "gdp": 20496000000,
+      "gdpPerCapita": 12000,
+      "population": 1708000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        26.62046620466205,
+        45.48808884648315
+      ],
+      [
+        30.026100261002625,
+        48.4669919883475
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C117": {
+    "cca3": "C117",
+    "name": "Country 118",
+    "officialName": "Country 118",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1721000,
+    "indicators": {
+      "gdp": 20652000000,
+      "gdpPerCapita": 12000,
+      "population": 1721000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        20.21960219602198,
+        43.68889905114125
+      ],
+      [
+        29.626496264962668,
+        48.22176659772458
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C118": {
+    "cca3": "C118",
+    "name": "Country 119",
+    "officialName": "Country 119",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1734000,
+    "indicators": {
+      "gdp": 20808000000,
+      "gdpPerCapita": 12000,
+      "population": 1734000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        21.05481054810548,
+        53.90518278085324
+      ],
+      [
+        26.588065880658803,
+        56.372933224511314
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C119": {
+    "cca3": "C119",
+    "name": "Country 120",
+    "officialName": "Country 120",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1747000,
+    "indicators": {
+      "gdp": 20964000000,
+      "gdpPerCapita": 12000,
+      "population": 1747000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        21.05481054810548,
+        55.61466697021859
+      ],
+      [
+        28.175681756817568,
+        57.97070854605673
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C120": {
+    "cca3": "C120",
+    "name": "Country 121",
+    "officialName": "Country 121",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1760000,
+    "indicators": {
+      "gdp": 21120000000,
+      "gdpPerCapita": 12000,
+      "population": 1760000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        23.340833408334078,
+        57.47478887528047
+      ],
+      [
+        28.132481324813256,
+        59.61079783268545
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C121": {
+    "cca3": "C121",
+    "name": "Country 122",
+    "officialName": "Country 122",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1773000,
+    "indicators": {
+      "gdp": 21276000000,
+      "gdpPerCapita": 12000,
+      "population": 1773000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        5.988659886598867,
+        47.30251166925507
+      ],
+      [
+        15.017550175501754,
+        54.98334261117574
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C122": {
+    "cca3": "C122",
+    "name": "Country 123",
+    "officialName": "Country 123",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1786000,
+    "indicators": {
+      "gdp": 21432000000,
+      "gdpPerCapita": 12000,
+      "population": 1786000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        22.37962379623798,
+        41.23468907630982
+      ],
+      [
+        28.557285572855733,
+        44.23559548001748
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C123": {
+    "cca3": "C123",
+    "name": "Country 124",
+    "officialName": "Country 124",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1799000,
+    "indicators": {
+      "gdp": 21588000000,
+      "gdpPerCapita": 12000,
+      "population": 1799000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        20.15120151201512,
+        34.91975292727808
+      ],
+      [
+        26.60246602466026,
+        41.82708458747602
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C124": {
+    "cca3": "C124",
+    "name": "Country 125",
+    "officialName": "Country 125",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1812000,
+    "indicators": {
+      "gdp": 21744000000,
+      "gdpPerCapita": 12000,
+      "population": 1812000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        26.044460444604454,
+        35.821886662854055
+      ],
+      [
+        44.79344793447936,
+        42.14190048769578
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C125": {
+    "cca3": "C125",
+    "name": "Country 126",
+    "officialName": "Country 126",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1825000,
+    "indicators": {
+      "gdp": 21900000000,
+      "gdpPerCapita": 12000,
+      "population": 1825000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        19.30519305193053,
+        39.62506584454108
+      ],
+      [
+        21.018810188101895,
+        42.68859691657201
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C126": {
+    "cca3": "C126",
+    "name": "Country 127",
+    "officialName": "Country 127",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1838000,
+    "indicators": {
+      "gdp": 22056000000,
+      "gdpPerCapita": 12000,
+      "population": 1838000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        13.65673656736567,
+        42.48041220836217
+      ],
+      [
+        19.391593915939154,
+        46.503624008482376
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C127": {
+    "cca3": "C127",
+    "name": "Country 128",
+    "officialName": "Country 128",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1851000,
+    "indicators": {
+      "gdp": 22212000000,
+      "gdpPerCapita": 12000,
+      "population": 1851000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        6.021060210602116,
+        45.777516367652936
+      ],
+      [
+        10.441904419044192,
+        47.830589953494666
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C128": {
+    "cca3": "C128",
+    "name": "Country 129",
+    "officialName": "Country 129",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1864000,
+    "indicators": {
+      "gdp": 22368000000,
+      "gdpPerCapita": 12000,
+      "population": 1864000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        5.675456754567563,
+        49.44190574386673
+      ],
+      [
+        6.244262442624432,
+        50.127391978216195
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C129": {
+    "cca3": "C129",
+    "name": "Country 130",
+    "officialName": "Country 130",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1877000,
+    "indicators": {
+      "gdp": 22524000000,
+      "gdpPerCapita": 12000,
+      "population": 1877000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        2.5146251462514613,
+        49.52991879123999
+      ],
+      [
+        6.15786157861578,
+        51.474668626468485
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C130": {
+    "cca3": "C130",
+    "name": "Country 131",
+    "officialName": "Country 131",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1890000,
+    "indicators": {
+      "gdp": 22680000000,
+      "gdpPerCapita": 12000,
+      "population": 1890000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        3.313833138331404,
+        50.804415419549
+      ],
+      [
+        7.0902709027090225,
+        53.51081662627689
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C131": {
+    "cca3": "C131",
+    "name": "Country 132",
+    "officialName": "Country 132",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1903000,
+    "indicators": {
+      "gdp": 22836000000,
+      "gdpPerCapita": 12000,
+      "population": 1903000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -9.527495274952742,
+        36.83911438345659
+      ],
+      [
+        -6.3882638826388245,
+        42.280690293169
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C132": {
+    "cca3": "C132",
+    "name": "Country 133",
+    "officialName": "Country 133",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1916000,
+    "indicators": {
+      "gdp": 22992000000,
+      "gdpPerCapita": 12000,
+      "population": 1916000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -9.394293942939413,
+        35.94713599950062
+      ],
+      [
+        3.0402304023040188,
+        43.74813860225785
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C133": {
+    "cca3": "C133",
+    "name": "Country 134",
+    "officialName": "Country 134",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1929000,
+    "indicators": {
+      "gdp": 23148000000,
+      "gdpPerCapita": 12000,
+      "population": 1929000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -9.977499774997739,
+        51.66931286585165
+      ],
+      [
+        -6.031860318603179,
+        55.13228776826895
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C134": {
+    "cca3": "C134",
+    "name": "Country 135",
+    "officialName": "Country 135",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1942000,
+    "indicators": {
+      "gdp": 23304000000,
+      "gdpPerCapita": 12000,
+      "population": 1942000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        164.03024030240306,
+        -22.40043673316378
+      ],
+      [
+        167.1190711907119,
+        -20.105327267045567
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C135": {
+    "cca3": "C135",
+    "name": "Country 136",
+    "officialName": "Country 136",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1955000,
+    "indicators": {
+      "gdp": 23460000000,
+      "gdpPerCapita": 12000,
+      "population": 1955000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        156.49176491764916,
+        -10.826721003579493
+      ],
+      [
+        162.39942399423995,
+        -6.598709612456133
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C136": {
+    "cca3": "C136",
+    "name": "Country 137",
+    "officialName": "Country 137",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1968000,
+    "indicators": {
+      "gdp": 23616000000,
+      "gdpPerCapita": 12000,
+      "population": 1968000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        166.51066510665106,
+        -46.64126105008483
+      ],
+      [
+        178.5167851678517,
+        -34.45145398888769
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C137": {
+    "cca3": "C137",
+    "name": "Country 138",
+    "officialName": "Country 138",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1981000,
+    "indicators": {
+      "gdp": 23772000000,
+      "gdpPerCapita": 12000,
+      "population": 1981000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        113.33813338133382,
+        -43.63527697056718
+      ],
+      [
+        153.5685356853569,
+        -10.667620494866284
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C138": {
+    "cca3": "C138",
+    "name": "Country 139",
+    "officialName": "Country 139",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 1994000,
+    "indicators": {
+      "gdp": 23928000000,
+      "gdpPerCapita": 12000,
+      "population": 1994000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        79.6957969579696,
+        5.968538017284047
+      ],
+      [
+        81.78741787417874,
+        9.82418651567437
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C139": {
+    "cca3": "C139",
+    "name": "Country 140",
+    "officialName": "Country 140",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2007000,
+    "indicators": {
+      "gdp": 24084000000,
+      "gdpPerCapita": 12000,
+      "population": 2007000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        73.67653676536767,
+        18.197273926357823
+      ],
+      [
+        135.02475024750248,
+        53.45834730957361
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C140": {
+    "cca3": "C140",
+    "name": "Country 141",
+    "officialName": "Country 141",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2020000,
+    "indicators": {
+      "gdp": 24240000000,
+      "gdpPerCapita": 12000,
+      "population": 2020000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        120.10620106201065,
+        21.96998705318488
+      ],
+      [
+        121.95301953019532,
+        25.29586470873228
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C141": {
+    "cca3": "C141",
+    "name": "Country 142",
+    "officialName": "Country 142",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2033000,
+    "indicators": {
+      "gdp": 24396000000,
+      "gdpPerCapita": 12000,
+      "population": 2033000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        6.748267482674834,
+        36.62077432362676
+      ],
+      [
+        18.480784807848096,
+        47.114637664285226
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C142": {
+    "cca3": "C142",
+    "name": "Country 143",
+    "officialName": "Country 143",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2046000,
+    "indicators": {
+      "gdp": 24552000000,
+      "gdpPerCapita": 12000,
+      "population": 2046000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        8.091080910809126,
+        54.80054628201589
+      ],
+      [
+        12.688326883268843,
+        57.730365224383604
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C143": {
+    "cca3": "C143",
+    "name": "Country 144",
+    "officialName": "Country 144",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2059000,
+    "indicators": {
+      "gdp": 24708000000,
+      "gdpPerCapita": 12000,
+      "population": 2059000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -7.572675726757268,
+        49.959828676486325
+      ],
+      [
+        1.6830168301682988,
+        58.634191518562886
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C144": {
+    "cca3": "C144",
+    "name": "Country 145",
+    "officialName": "Country 145",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2072000,
+    "indicators": {
+      "gdp": 24864000000,
+      "gdpPerCapita": 12000,
+      "population": 2072000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -24.327243272432725,
+        63.49691238593576
+      ],
+      [
+        -13.609936099360993,
+        66.52659228590005
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C145": {
+    "cca3": "C145",
+    "name": "Country 146",
+    "officialName": "Country 146",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2085000,
+    "indicators": {
+      "gdp": 25020000000,
+      "gdpPerCapita": 12000,
+      "population": 2085000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        44.79344793447936,
+        38.27101896187547
+      ],
+      [
+        50.39150391503915,
+        41.86093575954267
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C146": {
+    "cca3": "C146",
+    "name": "Country 147",
+    "officialName": "Country 147",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2098000,
+    "indicators": {
+      "gdp": 25176000000,
+      "gdpPerCapita": 12000,
+      "population": 2098000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        39.954999549995506,
+        41.06374065737329
+      ],
+      [
+        46.63666636666366,
+        43.55349436287469
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C147": {
+    "cca3": "C147",
+    "name": "Country 148",
+    "officialName": "Country 148",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2111000,
+    "indicators": {
+      "gdp": 25332000000,
+      "gdpPerCapita": 12000,
+      "population": 2111000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        117.1757717577176,
+        5.580942097121024
+      ],
+      [
+        126.53586535865361,
+        18.505319592164255
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C148": {
+    "cca3": "C148",
+    "name": "Country 149",
+    "officialName": "Country 149",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2124000,
+    "indicators": {
+      "gdp": 25488000000,
+      "gdpPerCapita": 12000,
+      "population": 2124000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        100.08640086400862,
+        0.7723831050547716
+      ],
+      [
+        119.18099180991811,
+        6.9282187453733
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C149": {
+    "cca3": "C149",
+    "name": "Country 150",
+    "officialName": "Country 150",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2137000,
+    "indicators": {
+      "gdp": 25644000000,
+      "gdpPerCapita": 12000,
+      "population": 2137000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        114.2057420574206,
+        4.006862596022245
+      ],
+      [
+        115.45135451354514,
+        5.447229967457787
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C150": {
+    "cca3": "C150",
+    "name": "Country 151",
+    "officialName": "Country 151",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2150000,
+    "indicators": {
+      "gdp": 25800000000,
+      "gdpPerCapita": 12000,
+      "population": 2150000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        13.696336963369646,
+        45.452545115813194
+      ],
+      [
+        16.56556565565657,
+        46.852291080768765
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C151": {
+    "cca3": "C151",
+    "name": "Country 152",
+    "officialName": "Country 152",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2163000,
+    "indicators": {
+      "gdp": 25956000000,
+      "gdpPerCapita": 12000,
+      "population": 2163000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        20.644406444064458,
+        59.846063478548615
+      ],
+      [
+        31.516515165151645,
+        70.16390072446055
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C152": {
+    "cca3": "C152",
+    "name": "Country 153",
+    "officialName": "Country 153",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2176000,
+    "indicators": {
+      "gdp": 26112000000,
+      "gdpPerCapita": 12000,
+      "population": 2176000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        16.878768787687875,
+        47.757809933551385
+      ],
+      [
+        22.559625596255984,
+        49.5722327563233
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C153": {
+    "cca3": "C153",
+    "name": "Country 154",
+    "officialName": "Country 154",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2189000,
+    "indicators": {
+      "gdp": 26268000000,
+      "gdpPerCapita": 12000,
+      "population": 2189000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        12.238322383223846,
+        48.55500503572077
+      ],
+      [
+        18.85158851588517,
+        51.117538761165434
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C154": {
+    "cca3": "C154",
+    "name": "Country 155",
+    "officialName": "Country 155",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2202000,
+    "indicators": {
+      "gdp": 26424000000,
+      "gdpPerCapita": 12000,
+      "population": 2202000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        36.32256322563225,
+        12.45611514385564
+      ],
+      [
+        43.079830798307995,
+        17.997552011164643
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C155": {
+    "cca3": "C155",
+    "name": "Country 156",
+    "officialName": "Country 156",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2215000,
+    "indicators": {
+      "gdp": 26580000000,
+      "gdpPerCapita": 12000,
+      "population": 2215000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        129.4086940869409,
+        31.030253256821126
+      ],
+      [
+        145.54405544055442,
+        45.55071351480646
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C156": {
+    "cca3": "C156",
+    "name": "Country 157",
+    "officialName": "Country 157",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2228000,
+    "indicators": {
+      "gdp": 26736000000,
+      "gdpPerCapita": 12000,
+      "population": 2228000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -62.685626856268556,
+        -27.549200004499752
+      ],
+      [
+        -54.293942939429385,
+        -19.341983336942832
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C157": {
+    "cca3": "C157",
+    "name": "Country 158",
+    "officialName": "Country 158",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2241000,
+    "indicators": {
+      "gdp": 26892000000,
+      "gdpPerCapita": 12000,
+      "population": 2241000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        42.60462604626048,
+        12.586442156312216
+      ],
+      [
+        53.109531095310956,
+        18.99954670433719
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C158": {
+    "cca3": "C158",
+    "name": "Country 159",
+    "officialName": "Country 159",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2254000,
+    "indicators": {
+      "gdp": 27048000000,
+      "gdpPerCapita": 12000,
+      "population": 2254000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        34.63054630546307,
+        16.347307372915935
+      ],
+      [
+        55.665556655566576,
+        32.16088240384691
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C159": {
+    "cca3": "C159",
+    "name": "Country 160",
+    "officialName": "Country 160",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2267000,
+    "indicators": {
+      "gdp": 27204000000,
+      "gdpPerCapita": 12000,
+      "population": 2267000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -180,
+        -90
+      ],
+      [
+        180,
+        -63.270649327821836
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C160": {
+    "cca3": "C160",
+    "name": "Country 161",
+    "officialName": "Country 161",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2280000,
+    "indicators": {
+      "gdp": 27360000000,
+      "gdpPerCapita": 12000,
+      "population": 2280000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        32.73332733327334,
+        35.000995740238025
+      ],
+      [
+        34.57654576545767,
+        35.67124894715751
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C161": {
+    "cca3": "C161",
+    "name": "Country 162",
+    "officialName": "Country 162",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2293000,
+    "indicators": {
+      "gdp": 27516000000,
+      "gdpPerCapita": 12000,
+      "population": 2293000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        32.25812258122582,
+        34.57108585499169
+      ],
+      [
+        34.00414004140043,
+        35.173636717777896
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C162": {
+    "cca3": "C162",
+    "name": "Country 163",
+    "officialName": "Country 163",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2306000,
+    "indicators": {
+      "gdp": 27672000000,
+      "gdpPerCapita": 12000,
+      "population": 2306000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -17.019170191701903,
+        21.419905507101973
+      ],
+      [
+        -1.1250112501124931,
+        35.75926199453076
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C163": {
+    "cca3": "C163",
+    "name": "Country 164",
+    "officialName": "Country 164",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2319000,
+    "indicators": {
+      "gdp": 27828000000,
+      "gdpPerCapita": 12000,
+      "population": 2319000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        24.70164701647016,
+        22.00045310804485
+      ],
+      [
+        36.86616866168663,
+        31.585412478714034
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C164": {
+    "cca3": "C164",
+    "name": "Country 165",
+    "officialName": "Country 165",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2332000,
+    "indicators": {
+      "gdp": 27984000000,
+      "gdpPerCapita": 12000,
+      "population": 2332000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        9.318693186931881,
+        19.580094305280085
+      ],
+      [
+        25.166051660516615,
+        33.137488717969475
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C165": {
+    "cca3": "C165",
+    "name": "Country 166",
+    "officialName": "Country 166",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2345000,
+    "indicators": {
+      "gdp": 28140000000,
+      "gdpPerCapita": 12000,
+      "population": 2345000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        32.95292952929529,
+        3.4212373192693804
+      ],
+      [
+        47.788677886778885,
+        14.959409318183688
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C166": {
+    "cca3": "C166",
+    "name": "Country 167",
+    "officialName": "Country 167",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2358000,
+    "indicators": {
+      "gdp": 28296000000,
+      "gdpPerCapita": 12000,
+      "population": 2358000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        41.66141661416614,
+        10.926042166443509
+      ],
+      [
+        43.31743317433174,
+        12.699843582735454
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C167": {
+    "cca3": "C167",
+    "name": "Country 168",
+    "officialName": "Country 168",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2371000,
+    "indicators": {
+      "gdp": 28452000000,
+      "gdpPerCapita": 12000,
+      "population": 2371000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        42.5578255782558,
+        7.996223224075791
+      ],
+      [
+        48.94788947889481,
+        11.462583243699754
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C168": {
+    "cca3": "C168",
+    "name": "Country 169",
+    "officialName": "Country 169",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2384000,
+    "indicators": {
+      "gdp": 28608000000,
+      "gdpPerCapita": 12000,
+      "population": 2384000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        29.579695796957964,
+        -1.4431761067068294
+      ],
+      [
+        35.037350373503756,
+        4.250591034902058
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C169": {
+    "cca3": "C169",
+    "name": "Country 170",
+    "officialName": "Country 170",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2397000,
+    "indicators": {
+      "gdp": 28764000000,
+      "gdpPerCapita": 12000,
+      "population": 2397000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        29.02529025290255,
+        -2.9173946502090047
+      ],
+      [
+        30.814508145081447,
+        -1.1351304409003973
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C170": {
+    "cca3": "C170",
+    "name": "Country 171",
+    "officialName": "Country 171",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2410000,
+    "indicators": {
+      "gdp": 28920000000,
+      "gdpPerCapita": 12000,
+      "population": 2410000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        15.748357483574836,
+        42.64966806869538
+      ],
+      [
+        19.600396003960043,
+        45.23420505598335
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C171": {
+    "cca3": "C171",
+    "name": "Country 172",
+    "officialName": "Country 172",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2423000,
+    "indicators": {
+      "gdp": 29076000000,
+      "gdpPerCapita": 12000,
+      "population": 2423000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        20.464404644046454,
+        40.8420154803368
+      ],
+      [
+        22.952029520295213,
+        42.319619141045635
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C172": {
+    "cca3": "C172",
+    "name": "Country 173",
+    "officialName": "Country 173",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2436000,
+    "indicators": {
+      "gdp": 29232000000,
+      "gdpPerCapita": 12000,
+      "population": 2436000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        18.829988299883013,
+        42.24514656249903
+      ],
+      [
+        22.98442984429846,
+        46.17188252222928
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C173": {
+    "cca3": "C173",
+    "name": "Country 174",
+    "officialName": "Country 174",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2449000,
+    "indicators": {
+      "gdp": 29388000000,
+      "gdpPerCapita": 12000,
+      "population": 2449000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        18.448384483844848,
+        41.87786134557598
+      ],
+      [
+        20.338403384033853,
+        43.52302830801469
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C174": {
+    "cca3": "C174",
+    "name": "Country 175",
+    "officialName": "Country 175",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2462000,
+    "indicators": {
+      "gdp": 29544000000,
+      "gdpPerCapita": 12000,
+      "population": 2462000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        20.072000720007196,
+        41.84739529071601
+      ],
+      [
+        21.774817748177497,
+        43.272529634721565
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C175": {
+    "cca3": "C175",
+    "name": "Country 176",
+    "officialName": "Country 176",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2475000,
+    "indicators": {
+      "gdp": 29700000000,
+      "gdpPerCapita": 12000,
+      "population": 2475000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        -61.951219512195124,
+        10.000212610420903
+      ],
+      [
+        -60.89640896408963,
+        10.890498435773537
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  },
+  "C176": {
+    "cca3": "C176",
+    "name": "Country 177",
+    "officialName": "Country 177",
+    "region": "—",
+    "subregion": "—",
+    "capitals": [],
+    "areaKm2": null,
+    "population": 2488000,
+    "indicators": {
+      "gdp": 29856000000,
+      "gdpPerCapita": 12000,
+      "population": 2488000,
+      "militaryPercentGdp": 1.8
+    },
+    "bbox": [
+      [
+        23.88803888038882,
+        3.5092503666426325
+      ],
+      [
+        35.296552965529656,
+        12.247930435645813
+      ]
+    ],
+    "latlng": null,
+    "flags": null
+  }
+}
