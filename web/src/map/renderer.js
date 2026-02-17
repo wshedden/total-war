@@ -35,7 +35,8 @@ export function createRenderer(canvas, topo, getState) {
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
 
-    for (const f of world.features) {
+    for (const entry of pickCache) {
+      const { feature: f, path2d } = entry;
       const cca3 = f.properties.cca3;
       const dynamic = state.dynamic[cca3];
       const c = state.countryIndex[cca3];
@@ -44,12 +45,10 @@ export function createRenderer(canvas, topo, getState) {
       const fill = state.overlay === 'political' ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
-      ctx.beginPath();
-      path(f, ctx);
-      ctx.fill();
+      ctx.fill(path2d);
       ctx.strokeStyle = '#1a2a3f';
       ctx.lineWidth = 0.75;
-      ctx.stroke();
+      ctx.stroke(path2d);
     }
 
     const hover = pickCache.find((e) => e.feature.properties.cca3 === state.hovered);
