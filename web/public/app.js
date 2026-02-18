@@ -48,7 +48,7 @@ function renderTopbar(container, actions2) {
     speed.append(o);
   });
   const overlay = el("select");
-  overlay.innerHTML = '<option value="political">Political</option><option value="heatmap">Data Heatmap</option>';
+  overlay.innerHTML = '<option value="political">Political</option><option value="diplomacy">Diplomacy</option><option value="heatmap">Data Heatmap</option>';
   const metric = el("select");
   metric.innerHTML = '<option value="gdp">GDP</option><option value="gdpPerCapita">GDP per capita</option><option value="population">Population</option><option value="militaryPercentGdp">Military % GDP</option>';
   const save = el("button", "", "Save");
@@ -84,14 +84,48 @@ var fmtCompact = (value) => Number.isFinite(value) ? compact.format(value) : "\u
 var fmtPercent = (value) => Number.isFinite(value) ? `${num.format(value)}%` : "\u2014";
 
 // web/src/ui/dossier.js
+function relLabel(rel, tension) {
+  if (rel <= -40 || tension >= 70) return "Hostile";
+  if (rel >= 40 && tension < 40) return "Friendly";
+  return "Wary";
+}
+function relBar(rel) {
+  const pct = (rel + 100) / 200 * 100;
+  return `<div class="rel-bar" title="Relationship -100 to 100"><i style="width:${pct.toFixed(1)}%"></i></div>`;
+}
+function tensionBar(tension) {
+  return `<div class="tense-bar" title="Border tension 0 to 100"><i style="width:${tension}%"></i></div>`;
+}
+function sortNeighbours(selected, state, mode) {
+  const items = (state.neighbours?.[selected.cca3] ?? []).map((code) => {
+    const edge = state.relations?.[selected.cca3]?.[code] ?? { rel: 0, tension: 0, trust: 50 };
+    return {
+      code,
+      name: state.countryIndex?.[code]?.name ?? code,
+      rel: edge.rel,
+      tension: edge.tension,
+      trust: edge.trust,
+      powerRatio: (state.dynamic?.[selected.cca3]?.power ?? 0) / Math.max(1, state.dynamic?.[code]?.power ?? 0)
+    };
+  });
+  if (mode === "name") items.sort((a, b) => a.name.localeCompare(b.name));
+  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.code.localeCompare(b.code));
+  return items;
+}
 function renderDossier(node, state) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
-    node.innerHTML = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
+    const markup2 = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
+    if (node.__lastMarkup !== markup2) {
+      node.innerHTML = markup2;
+      node.__lastMarkup = markup2;
+    }
     return;
   }
+  if (!node.__sortMode) node.__sortMode = "negative";
+  const neighbours2 = sortNeighbours(selected, state, node.__sortMode);
   const dyn = state.dynamic[selected.cca3];
-  node.innerHTML = `
+  const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
     <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
@@ -99,9 +133,31 @@ function renderDossier(node, state) {
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
     <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
     <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
+    <h3>Neighbours</h3>
+    <div class="neighbour-head"><span>Sorted by ${node.__sortMode === "name" ? "name" : "worst relations"}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
+    <div class="neighbours">${neighbours2.map((n) => `
+      <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
+        <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
+        ${relBar(n.rel)}
+        ${tensionBar(n.tension)}
+        <div class="neighbour-meta"><span>${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+      </div>
+    `).join("") || '<div class="events">No land neighbours in this dataset.</div>'}</div>
     <h3>Recent events</h3>
-    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}</div>`).join("") || "<div>None.</div>"}</div>
+    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>"}</div>
   `;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+    const sortBtn = node.querySelector(".neighbour-sort");
+    if (sortBtn) {
+      sortBtn.onclick = () => {
+        node.__sortMode = node.__sortMode === "name" ? "negative" : "name";
+        node.__lastMarkup = "";
+      };
+    }
+  }
   node.classList.toggle("open", state.dossierOpen);
 }
 
@@ -113,10 +169,14 @@ function renderTooltip(node, state, x, y) {
   }
   const c = state.countryIndex[state.hovered];
   const d = state.dynamic[state.hovered];
+  const markup = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
   node.hidden = false;
   node.style.left = `${x + 14}px`;
   node.style.top = `${y + 14}px`;
-  node.innerHTML = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
 }
 
 // web/src/state/metricRange.js
@@ -149,65 +209,37 @@ function selectActiveMetricValue(state, cca3) {
 
 // web/src/ui/overlays.js
 function renderLegend(node, state) {
-  if (state.overlay !== "heatmap") {
-    node.hidden = true;
+  if (state.overlay === "heatmap") {
+    node.hidden = false;
+    const { min, max } = selectActiveMetricRange(state);
+    const markup = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
+    if (node.__lastMarkup !== markup) {
+      node.innerHTML = markup;
+      node.__lastMarkup = markup;
+    }
     return;
   }
-  node.hidden = false;
-  const { min, max } = selectActiveMetricRange(state);
-  node.innerHTML = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
+  if (state.overlay === "diplomacy") {
+    node.hidden = false;
+    const markup = state.selected ? "<div><strong>Diplomacy</strong></div><div>Green: positive \xB7 Gray: neutral \xB7 Red: negative</div><div>Stroke intensity = border tension</div>" : "<div><strong>Diplomacy</strong></div><div>Select a country to view neighbour relations.</div>";
+    if (node.__lastMarkup !== markup) {
+      node.innerHTML = markup;
+      node.__lastMarkup = markup;
+    }
+    return;
+  }
+  node.hidden = true;
 }
 
 // web/src/ui/debug.js
 function renderDebug(node, state) {
   node.hidden = !state.debug;
   if (!state.debug) return;
-  node.innerHTML = `FPS ${state.debugInfo.fps}<br/>Turn ${state.turn}<br/>Hover ${state.hovered ?? "\u2014"}<br/>Candidates ${state.debugInfo.candidates}<br/>Render ${state.debugInfo.renderMs.toFixed(2)} ms`;
-}
-
-// web/src/ui/saveLoad.js
-var KEY = "total-war-v0-save";
-function makeSnapshot(state) {
-  return {
-    seed: state.seed,
-    turn: state.turn,
-    paused: state.paused,
-    speed: state.speed,
-    camera: state.camera,
-    selected: state.selected,
-    overlay: state.overlay,
-    metric: state.metric,
-    dynamic: state.dynamic,
-    events: state.events
-  };
-}
-function saveToLocal(snapshot) {
-  localStorage.setItem(KEY, JSON.stringify(snapshot));
-}
-function loadFromLocal() {
-  const raw = localStorage.getItem(KEY);
-  return raw ? JSON.parse(raw) : null;
-}
-function exportJson(snapshot) {
-  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `total-war-save-${Date.now()}.json`;
-  a.click();
-}
-function importJsonFile() {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-      const text = await file.text();
-      resolve(JSON.parse(text));
-    };
-    input.click();
-  });
+  const markup = `FPS ${state.debugInfo.fps}<br/>Turn ${state.turn}<br/>Hover ${state.hovered ?? "\u2014"}<br/>Candidates ${state.debugInfo.candidates}<br/>Render ${state.debugInfo.renderMs.toFixed(2)} ms`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
 }
 
 // web/src/util/rng.js
@@ -233,8 +265,246 @@ function countryTurnRng(globalSeed, turn, cca3, channel = "base") {
   const seed = hashString(`${globalSeed}:${turn}:${cca3}:${channel}`);
   return mulberry32(seed);
 }
+function pairKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+// web/src/state/relationships.js
+var REL_MIN = -100;
+var REL_MAX = 100;
+var METER_MIN = 0;
+var METER_MAX = 100;
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function toSortedEdge(a, b) {
+  return a < b ? [a, b] : [b, a];
+}
+function createStableEdges(neighbours2 = {}) {
+  const edges = [];
+  for (const a of Object.keys(neighbours2).sort()) {
+    for (const b of [...neighbours2[a] ?? []].sort()) {
+      if (a < b) edges.push([a, b]);
+    }
+  }
+  edges.sort((x, y) => pairKey(x[0], x[1]).localeCompare(pairKey(y[0], y[1])));
+  return edges;
+}
+function getNeighbours(cca3, neighbours2 = {}) {
+  return neighbours2?.[cca3] ?? [];
+}
+function getEdge(relations, a, b) {
+  const [x, y] = toSortedEdge(a, b);
+  return relations?.[x]?.[y] ?? null;
+}
+function setEdge(relations, a, b, edge) {
+  const [x, y] = toSortedEdge(a, b);
+  if (!relations[x]) relations[x] = {};
+  if (!relations[y]) relations[y] = {};
+  const frozen = {
+    rel: clamp(Math.round(edge.rel), REL_MIN, REL_MAX),
+    tension: clamp(Math.round(edge.tension), METER_MIN, METER_MAX),
+    trust: clamp(Math.round(edge.trust), METER_MIN, METER_MAX),
+    lastTurnUpdated: edge.lastTurnUpdated ?? 0,
+    modifiers: (edge.modifiers ?? []).map((m) => ({
+      rel: Math.round(m.rel ?? 0),
+      tension: Math.round(m.tension ?? 0),
+      trust: Math.round(m.trust ?? 0),
+      turns: Math.max(0, Math.round(m.turns ?? 0)),
+      text: m.text ?? ""
+    }))
+  };
+  relations[x][y] = frozen;
+  relations[y][x] = frozen;
+}
+function gaussianish(rng) {
+  return (rng() + rng() + rng()) / 3;
+}
+function withRegionBias(rel, a, b, countryIndex2) {
+  const same = countryIndex2?.[a]?.region && countryIndex2?.[a]?.region === countryIndex2?.[b]?.region;
+  return same ? rel + 5 : rel;
+}
+function initRelations(seed, neighbours2, countryIndex2) {
+  const relations = {};
+  const edges = createStableEdges(neighbours2);
+  for (const [a, b] of edges) {
+    const rand = mulberry32(hashString(`pair:${seed}:${pairKey(a, b)}`));
+    const relNoise = Math.round((gaussianish(rand) - 0.5) * 60);
+    const rel = clamp(withRegionBias(relNoise, a, b, countryIndex2), -30, 30);
+    const tension = 5 + Math.floor(rand() * 16);
+    const trust = 40 + Math.floor(rand() * 21);
+    setEdge(relations, a, b, { rel, tension, trust, lastTurnUpdated: 0, modifiers: [] });
+  }
+  return { relations, edges };
+}
+function edgeModifierTotals(edge) {
+  let rel = 0;
+  let tension = 0;
+  let trust = 0;
+  const nextModifiers = [];
+  for (const mod of edge.modifiers ?? []) {
+    rel += mod.rel ?? 0;
+    tension += mod.tension ?? 0;
+    trust += mod.trust ?? 0;
+    if ((mod.turns ?? 0) > 1) nextModifiers.push({ ...mod, turns: mod.turns - 1 });
+  }
+  return { rel, tension, trust, nextModifiers };
+}
+function classifyPosture(edge) {
+  if (edge.rel <= -40 || edge.tension >= 70) return "Hostile";
+  if (edge.rel >= -20 && edge.rel <= 39 || edge.tension >= 40 && edge.tension <= 69) return "Wary";
+  return edge.rel >= 40 && edge.tension < 40 ? "Friendly" : "Wary";
+}
+function stepRelations({ turn, seed, relations, edges, dynamic, events }) {
+  const nextRelations = {};
+  const postureByCountry = {};
+  const nextEvents = [];
+  const eventsByCountry = /* @__PURE__ */ new Map();
+  for (const evt of events) {
+    if (!evt?.cca3) continue;
+    if (!eventsByCountry.has(evt.cca3)) eventsByCountry.set(evt.cca3, []);
+    eventsByCountry.get(evt.cca3).push(evt);
+  }
+  for (const [a, b] of edges) {
+    const prev = getEdge(relations, a, b) ?? { rel: 0, tension: 10, trust: 50, lastTurnUpdated: 0, modifiers: [] };
+    const powerA = dynamic[a]?.power ?? 0;
+    const powerB = dynamic[b]?.power ?? 0;
+    const denom = Math.max(powerA, powerB, 1);
+    const imbalance = (powerA - powerB) / denom;
+    const mod = edgeModifierTotals(prev);
+    let rel = prev.rel + clamp(Math.round((0 - prev.rel) * 0.02), -1, 1);
+    let tension = prev.tension;
+    let trust = prev.trust;
+    const hostileNear = (eventsByCountry.get(a) ?? []).some((e) => e.text?.toLowerCase().includes("shock")) || (eventsByCountry.get(b) ?? []).some((e) => e.text?.toLowerCase().includes("shock"));
+    let tensionDelta = 0 + (rel < 0 ? 1 : -1) + (Math.abs(imbalance) > 0.35 ? 1 : 0) + (trust < 35 ? 1 : 0) + (tension > 80 ? 1 : 0) + (hostileNear ? 1 : 0);
+    let relDelta = 0 + (tension > 75 ? -1 : 0) + (tension < 20 && trust > 60 ? 1 : 0);
+    let trustDelta = 0 + (rel > 25 && tension < 35 ? 1 : 0) - (tension > 70 ? 1 : 0) - (rel < -35 ? 1 : 0);
+    const pairRand = mulberry32(hashString(`evt:${seed}:${turn}:${pairKey(a, b)}`));
+    const roll = pairRand();
+    let evt = null;
+    if (roll < 25e-4) {
+      evt = { turn, cca3: a, secondary: b, text: "Border Incident" };
+      rel -= 10;
+      tension += 15;
+      mod.nextModifiers.push({ rel: -1, tension: 2, trust: -1, turns: 3, text: "Border Incident aftermath" });
+    } else if (roll < 5e-3) {
+      evt = { turn, cca3: a, secondary: b, text: "Trade Deal" };
+      rel += 10;
+      tension -= 10;
+      trust += 5;
+      mod.nextModifiers.push({ rel: 1, tension: -1, trust: 1, turns: 3, text: "Trade momentum" });
+    } else if (roll < 7e-3) {
+      evt = { turn, cca3: a, secondary: b, text: "Sanctions" };
+      rel -= 15;
+      tension += 10;
+      mod.nextModifiers.push({ rel: -1, tension: 1, trust: -1, turns: 2, text: "Sanctions pressure" });
+    } else if (roll < 9e-3) {
+      evt = { turn, cca3: a, secondary: b, text: "Joint Exercise" };
+      rel += 5;
+      trust += 10;
+      mod.nextModifiers.push({ rel: 1, tension: -1, trust: 1, turns: 3, text: "Joint exercise confidence" });
+    }
+    if (evt) nextEvents.push(evt);
+    rel += relDelta + mod.rel;
+    tension += tensionDelta + mod.tension;
+    trust += trustDelta + mod.trust;
+    const edge = {
+      rel: clamp(rel, REL_MIN, REL_MAX),
+      tension: clamp(tension, METER_MIN, METER_MAX),
+      trust: clamp(trust, METER_MIN, METER_MAX),
+      lastTurnUpdated: turn,
+      modifiers: mod.nextModifiers
+    };
+    setEdge(nextRelations, a, b, edge);
+    const posture = classifyPosture(edge);
+    if (!postureByCountry[a]) postureByCountry[a] = {};
+    if (!postureByCountry[b]) postureByCountry[b] = {};
+    postureByCountry[a][b] = posture;
+    postureByCountry[b][a] = posture;
+  }
+  return { relations: nextRelations, postureByCountry, relationEvents: nextEvents };
+}
+function serializeRelations(edges, relations) {
+  const relationEdges = [];
+  for (const [a, b] of edges) {
+    const edge = getEdge(relations, a, b);
+    if (!edge) continue;
+    relationEdges.push([a, b, edge.rel, edge.tension, edge.trust, edge.modifiers ?? []]);
+  }
+  return relationEdges;
+}
+function hydrateRelations(neighbours2, relationEdges = []) {
+  const relations = {};
+  const edges = createStableEdges(neighbours2);
+  for (const row of relationEdges) {
+    const [a, b, rel, tension, trust, modifiers = []] = row;
+    if (!a || !b) continue;
+    setEdge(relations, a, b, { rel, tension, trust, modifiers, lastTurnUpdated: 0 });
+  }
+  return { relations, edges };
+}
+
+// web/src/ui/saveLoad.js
+var KEY = "total-war-v0-save";
+function makeSnapshot(state) {
+  return {
+    seed: state.seed,
+    turn: state.turn,
+    paused: state.paused,
+    speed: state.speed,
+    camera: state.camera,
+    selected: state.selected,
+    overlay: state.overlay,
+    metric: state.metric,
+    dynamic: state.dynamic,
+    events: state.events,
+    postureByCountry: state.postureByCountry,
+    relationsEdges: serializeRelations(state.relationEdges, state.relations)
+  };
+}
+function saveToLocal(snapshot) {
+  localStorage.setItem(KEY, JSON.stringify(snapshot));
+}
+function loadFromLocal() {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function exportJson(snapshot) {
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `total-war-save-${Date.now()}.json`;
+  a.click();
+}
+function importJsonFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+      const text = await file.text();
+      try {
+        resolve(JSON.parse(text));
+      } catch {
+        resolve(null);
+      }
+    };
+    input.click();
+  });
+}
 
 // web/src/state/store.js
+function computePower(gdp, militaryPct, population) {
+  const milAbs = Math.max(0, gdp * (militaryPct / 100));
+  return Math.sqrt(milAbs) * 0.6 + Math.sqrt(Math.max(0, gdp)) * 0.3 + Math.sqrt(Math.max(0, population)) * 0.1;
+}
 function createStore(initialState) {
   let state = initialState;
   const listeners = /* @__PURE__ */ new Set();
@@ -253,22 +523,33 @@ function createStore(initialState) {
 function createInitialSimState(countryIndex2) {
   const dynamic = {};
   Object.values(countryIndex2).forEach((country) => {
+    const gdp = country.indicators.gdp;
+    const militaryPct = country.indicators.militaryPercentGdp;
+    const militarySpendAbs = gdp * (militaryPct / 100);
     dynamic[country.cca3] = {
-      gdp: country.indicators.gdp,
-      militaryPct: country.indicators.militaryPercentGdp,
+      gdp,
+      militaryPct,
       relations: {},
       growthMod: 0,
       modTurns: 0,
-      aiBias: 0.5
+      aiBias: 0.5,
+      growthRate: 0.01,
+      stability: 0.55,
+      militarySpendAbs,
+      power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0)
     };
   });
   return dynamic;
+}
+function createInitialRelations(seed, neighbours2, countryIndex2) {
+  return initRelations(seed, neighbours2, countryIndex2);
 }
 function simulateTurn(state) {
   const nextTurn = state.turn + 1;
   const nextDynamic = {};
   const events = [];
   for (const [cca3, entry] of Object.entries(state.dynamic)) {
+    const country = state.countryIndex[cca3];
     const rng = countryTurnRng(state.seed, nextTurn, cca3, "sim");
     const drift = (rng() - 0.5) * 0.012;
     const eventRoll = rng();
@@ -283,9 +564,47 @@ function simulateTurn(state) {
     const gdp = Math.max(1, entry.gdp * (1 + growth));
     const aiBias = Math.min(0.9, Math.max(0.1, entry.aiBias + (rng() - 0.5) * 0.05));
     const militaryPct = Math.max(0.2, Math.min(12, entry.militaryPct + (aiBias - 0.5) * 0.18 + (rng() - 0.5) * 0.08));
-    nextDynamic[cca3] = { ...entry, gdp, militaryPct, aiBias, growthMod, modTurns };
+    const stability = Math.max(0, Math.min(1, (entry.stability ?? 0.55) + (rng() - 0.5) * 0.04));
+    const militarySpendAbs = gdp * (militaryPct / 100);
+    const power = computePower(gdp, militaryPct, country?.population ?? 0);
+    nextDynamic[cca3] = {
+      ...entry,
+      gdp,
+      militaryPct,
+      aiBias,
+      growthMod,
+      modTurns,
+      growthRate: growth,
+      stability,
+      militarySpendAbs,
+      power
+    };
   }
-  return { ...state, turn: nextTurn, dynamic: nextDynamic, events: [...events, ...state.events].slice(0, 40) };
+  const relStep = stepRelations({
+    turn: nextTurn,
+    seed: state.seed,
+    relations: state.relations,
+    edges: state.relationEdges,
+    dynamic: nextDynamic,
+    events
+  });
+  for (const cca3 of Object.keys(nextDynamic)) {
+    const postures = Object.values(relStep.postureByCountry[cca3] ?? {});
+    const hostile = postures.filter((p) => p === "Hostile").length;
+    if (!postures.length) continue;
+    const hostilityRate = hostile / postures.length;
+    nextDynamic[cca3].militaryPct = Math.max(0.2, Math.min(12, nextDynamic[cca3].militaryPct + hostilityRate * 0.08));
+    nextDynamic[cca3].militarySpendAbs = nextDynamic[cca3].gdp * (nextDynamic[cca3].militaryPct / 100);
+    nextDynamic[cca3].power = computePower(nextDynamic[cca3].gdp, nextDynamic[cca3].militaryPct, state.countryIndex[cca3]?.population ?? 0);
+  }
+  return {
+    ...state,
+    turn: nextTurn,
+    dynamic: nextDynamic,
+    relations: relStep.relations,
+    postureByCountry: relStep.postureByCountry,
+    events: [...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
+  };
 }
 
 // web/src/state/actions.js
@@ -322,10 +641,31 @@ function createActions(store2) {
       store2.setState((s) => ({ ...s, search: value }));
     },
     newGame(seed) {
-      store2.setState((s) => ({ ...s, seed, turn: 0, events: [] }));
+      store2.setState((s) => {
+        const { relations, edges } = createInitialRelations(seed, s.neighbours, s.countryIndex);
+        return {
+          ...s,
+          seed,
+          turn: 0,
+          events: [],
+          dynamic: createInitialSimState(s.countryIndex),
+          relations,
+          relationEdges: edges,
+          postureByCountry: {}
+        };
+      });
     },
     loadState(snapshot) {
-      store2.setState((s) => ({ ...s, ...snapshot }));
+      store2.setState((s) => {
+        const hydrated = hydrateRelations(s.neighbours, snapshot.relationsEdges ?? []);
+        return {
+          ...s,
+          ...snapshot,
+          relations: hydrated.relations,
+          relationEdges: hydrated.edges,
+          postureByCountry: snapshot.postureByCountry ?? {}
+        };
+      });
     }
   };
 }
@@ -2012,17 +2352,62 @@ function heatmapColour(t) {
 }
 
 // web/src/map/picking.js
+var PICK_GRID_SIZE = 36;
+function createSpatialIndex(entries) {
+  const cells = /* @__PURE__ */ new Map();
+  for (const entry of entries) {
+    const [[x05, y05], [x12, y12]] = entry.bbox;
+    const minCellX = Math.floor(x05 / PICK_GRID_SIZE);
+    const maxCellX = Math.floor(x12 / PICK_GRID_SIZE);
+    const minCellY = Math.floor(y05 / PICK_GRID_SIZE);
+    const maxCellY = Math.floor(y12 / PICK_GRID_SIZE);
+    for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
+      for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+        const key = `${cellX}:${cellY}`;
+        const bucket = cells.get(key);
+        if (bucket) bucket.push(entry);
+        else cells.set(key, [entry]);
+      }
+    }
+  }
+  return { cells, cellSize: PICK_GRID_SIZE };
+}
+function getCandidatesFromIndex(index, worldPoint, worldTolerance) {
+  if (!index) return [];
+  const { cells, cellSize } = index;
+  const minCellX = Math.floor((worldPoint.x - worldTolerance) / cellSize);
+  const maxCellX = Math.floor((worldPoint.x + worldTolerance) / cellSize);
+  const minCellY = Math.floor((worldPoint.y - worldTolerance) / cellSize);
+  const maxCellY = Math.floor((worldPoint.y + worldTolerance) / cellSize);
+  const seen = /* @__PURE__ */ new Set();
+  const candidates = [];
+  for (let cellY = minCellY; cellY <= maxCellY; cellY += 1) {
+    for (let cellX = minCellX; cellX <= maxCellX; cellX += 1) {
+      const bucket = cells.get(`${cellX}:${cellY}`);
+      if (!bucket) continue;
+      for (const entry of bucket) {
+        if (seen.has(entry)) continue;
+        seen.add(entry);
+        candidates.push(entry);
+      }
+    }
+  }
+  return candidates;
+}
 function rebuildPickCache(features, path) {
-  return features.map((feature2) => {
+  const entries = features.map((feature2) => {
     const p = new Path2D(path(feature2));
     const b = path.bounds(feature2);
     return { feature: feature2, path2d: p, bbox: b };
   });
+  entries.spatialIndex = createSpatialIndex(entries);
+  return entries;
 }
 function pickCountry(ctx, pickCache, camera, width, height, x, y, tolerance = 3) {
   const worldPoint = screenToWorld(camera, x, y, width, height);
   const worldTolerance = tolerance / camera.zoom;
-  const candidates = pickCache.filter((entry) => {
+  const indexedCandidates = getCandidatesFromIndex(pickCache.spatialIndex, worldPoint, worldTolerance);
+  const candidates = indexedCandidates.filter((entry) => {
     const [[x05, y05], [x12, y12]] = entry.bbox;
     return worldPoint.x >= x05 - worldTolerance && worldPoint.x <= x12 + worldTolerance && worldPoint.y >= y05 - worldTolerance && worldPoint.y <= y12 + worldTolerance;
   });
@@ -2035,6 +2420,25 @@ function pickCountry(ctx, pickCache, camera, width, height, x, y, tolerance = 3)
 }
 
 // web/src/map/renderer.js
+function diplomacyFill(state, cca3) {
+  if (!state.selected) return "#2a3c55";
+  if (cca3 === state.selected) return "#f2c14e";
+  const edge = state.relations?.[state.selected]?.[cca3];
+  if (!edge) return "#1a2433";
+  const rel = edge.rel;
+  if (rel >= 35) return "#2f8f66";
+  if (rel <= -35) return "#a64f4f";
+  return "#6e7787";
+}
+function relationStroke(state, cca3) {
+  const edge = state.selected ? state.relations?.[state.selected]?.[cca3] : null;
+  if (!edge) return null;
+  const t = edge.tension / 100;
+  const width = 0.7 + t * 2.8;
+  const alpha = 0.15 + t * 0.7;
+  const hue = 125 - t * 125;
+  return { stroke: `hsla(${hue} 85% 60% / ${alpha})`, width };
+}
 function createRenderer(canvas, topo2, getState) {
   const ctx = canvas.getContext("2d");
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -2083,13 +2487,21 @@ function createRenderer(canvas, topo2, getState) {
       const cca3 = f.properties.cca3;
       const value = selectActiveMetricValue(state, cca3);
       const t = (value - metricMin) / (metricMax - metricMin || 1);
-      const fill = state.overlay === "political" ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
+      const fill = state.overlay === "heatmap" ? heatmapColour(t) : state.overlay === "diplomacy" ? diplomacyFill(state, cca3) : stableCountryColour(cca3, state.seed);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
       ctx.fill(path2d);
       ctx.strokeStyle = "#1a2a3f";
       ctx.lineWidth = 0.75 / state.camera.zoom;
       ctx.stroke(path2d);
+      if (state.overlay === "diplomacy" && state.selected) {
+        const border = relationStroke(state, cca3);
+        if (border) {
+          ctx.strokeStyle = border.stroke;
+          ctx.lineWidth = border.width / state.camera.zoom;
+          ctx.stroke(path2d);
+        }
+      }
     }
     if (spherePath2d) {
       ctx.save();
@@ -2144,13 +2556,29 @@ function createFpsCounter() {
 
 // web/src/main.js
 var root = document.getElementById("app");
+async function fetchJsonSafe(url, fallback) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback;
+  }
+}
 root.textContent = "Loading data\u2026";
-var [countries, topo] = await Promise.all([
-  fetch("/api/countries").then((r) => r.json()),
-  fetch("/api/borders").then((r) => r.json())
+var [countries, topo, neighboursPayload, fullCountries] = await Promise.all([
+  fetchJsonSafe("/api/countries", []),
+  fetchJsonSafe("/api/borders", null),
+  fetchJsonSafe("/api/neighbours", { neighbours: {} }),
+  fetchJsonSafe("/api/countries/full", [])
 ]);
-var fullCountries = await Promise.all(countries.map((c) => fetch(`/api/countries/${c.cca3}`).then((r) => r.json())));
-var countryIndex = Object.fromEntries(fullCountries.map((c) => [c.cca3, c]));
+var countryIndex = Object.fromEntries(fullCountries.filter((c) => c?.cca3).map((c) => [c.cca3, c]));
+if (!topo || !topo.objects?.countries) {
+  root.textContent = "Failed to load border geometry cache. Run data build and refresh the page.";
+  throw new Error("Missing /api/borders topology payload");
+}
+var neighbours = neighboursPayload?.neighbours ?? {};
+var initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 root.innerHTML = "";
 var ui = buildLayout(root);
 var store = createStore({
@@ -2168,7 +2596,11 @@ var store = createStore({
   events: [],
   camera: { x: 0, y: 0, zoom: 1 },
   countryIndex,
-  dynamic: createInitialSimState(countryIndex)
+  neighbours,
+  dynamic: createInitialSimState(countryIndex),
+  relations: initialRelations.relations,
+  relationEdges: initialRelations.edges,
+  postureByCountry: {}
 });
 var actions = createActions(store);
 var controls = renderTopbar(ui.topbar, actions);
@@ -2183,15 +2615,76 @@ controls.importBtn.onclick = async () => {
   const s = await importJsonFile();
   if (s) actions.loadState(s);
 };
-controls.newGame.onclick = () => actions.loadState({ ...store.getState(), seed: Math.random() * 1e9 | 0, turn: 0, events: [] });
+controls.newGame.onclick = () => actions.newGame(Math.random() * 1e9 | 0);
 controls.help.onclick = () => showHelp();
 var renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
 actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
 var dirty = true;
 var mouse = { x: 0, y: 0 };
+var latestHoverPointer = null;
+var hoverPickQueued = false;
 var debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 var fpsCounter = createFpsCounter();
+var prevTooltipInputs = null;
+var prevDossierInputs = null;
+var prevLegendInputs = null;
+var prevDebugInputs = null;
+function getTooltipInputs(state) {
+  const hovered = state.hovered;
+  const country = hovered ? state.countryIndex[hovered] : null;
+  const dyn = hovered ? state.dynamic[hovered] : null;
+  const metricValue = hovered ? state.metric === "militaryPercentGdp" ? dyn?.militaryPct : state.metric === "gdp" ? dyn?.gdp : country?.indicators?.[state.metric] : null;
+  return {
+    hovered,
+    x: mouse.x,
+    y: mouse.y,
+    metric: state.metric,
+    metricValue,
+    gdp: dyn?.gdp,
+    population: country?.population
+  };
+}
+function getDossierInputs(state) {
+  const selected = state.selected;
+  const dyn = selected ? state.dynamic[selected] : null;
+  const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join("|") : "";
+  const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join("|") : "";
+  return {
+    selected,
+    dossierOpen: state.dossierOpen,
+    gdp: dyn?.gdp,
+    militaryPct: dyn?.militaryPct,
+    eventSlice,
+    neighbourSlice
+  };
+}
+function getLegendInputs(state) {
+  const { min, max } = selectActiveMetricRange(state);
+  return {
+    overlay: state.overlay,
+    metric: state.metric,
+    min,
+    max
+  };
+}
+function getDebugInputs(state) {
+  return {
+    debug: state.debug,
+    fps: debugInfo.fps,
+    turn: state.turn,
+    hovered: state.hovered,
+    candidates: state.debugInfo?.candidates,
+    renderMs: state.debugInfo?.renderMs
+  };
+}
+function shallowEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((k) => a[k] === b[k]);
+}
 store.subscribe(() => {
   dirty = true;
 });
@@ -2217,9 +2710,8 @@ window.addEventListener("mousemove", (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 4);
-  debugInfo.candidates = hit.candidates;
-  actions.setHover(hit.cca3);
+  latestHoverPointer = { x: e.offsetX, y: e.offsetY };
+  hoverPickQueued = true;
 });
 ui.canvas.addEventListener("click", (e) => {
   const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
@@ -2260,6 +2752,21 @@ function frame(now) {
       acc -= 1;
     }
   }
+  if (hoverPickQueued && latestHoverPointer) {
+    const hit = pickCountry(
+      renderer.ctx,
+      renderer.getPickCache(),
+      state.camera,
+      ui.canvas.clientWidth,
+      ui.canvas.clientHeight,
+      latestHoverPointer.x,
+      latestHoverPointer.y,
+      4
+    );
+    debugInfo.candidates = hit.candidates;
+    actions.setHover(hit.cca3);
+    hoverPickQueued = false;
+  }
   if (dirty) drawNow();
   requestAnimationFrame(frame);
 }
@@ -2271,18 +2778,35 @@ function drawNow() {
   debugInfo.fps = fpsCounter.tick();
   debugInfo.renderMs = performance.now() - t0;
   const state = store.getState();
-  renderDossier(ui.dossier, state);
-  renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
-  renderLegend(ui.legend, {
-    ...state,
-    heatNorm(metric, dyn, c) {
-      const v = metric === "militaryPercentGdp" ? dyn.militaryPct : metric === "gdp" ? dyn.gdp : c.indicators[metric];
-      const rangeState = metric === state.metric ? state : { ...state, metric };
-      const { min, max } = selectActiveMetricRange(rangeState);
-      return (v - min) / (max - min || 1);
-    }
-  });
-  renderDebug(ui.debug, { ...state, debugInfo });
+  const tooltipInputs = getTooltipInputs(state);
+  if (!shallowEqual(prevTooltipInputs, tooltipInputs)) {
+    renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
+    prevTooltipInputs = tooltipInputs;
+  }
+  const dossierInputs = getDossierInputs(state);
+  if (!shallowEqual(prevDossierInputs, dossierInputs)) {
+    renderDossier(ui.dossier, state);
+    prevDossierInputs = dossierInputs;
+  }
+  const legendInputs = getLegendInputs(state);
+  if (!shallowEqual(prevLegendInputs, legendInputs)) {
+    renderLegend(ui.legend, {
+      ...state,
+      heatNorm(metric, dyn, c) {
+        const v = metric === "militaryPercentGdp" ? dyn.militaryPct : metric === "gdp" ? dyn.gdp : c.indicators[metric];
+        const rangeState = metric === state.metric ? state : { ...state, metric };
+        const { min, max } = selectActiveMetricRange(rangeState);
+        return (v - min) / (max - min || 1);
+      }
+    });
+    prevLegendInputs = legendInputs;
+  }
+  const debugState = { ...state, debugInfo };
+  const debugInputs = getDebugInputs(debugState);
+  if (!shallowEqual(prevDebugInputs, debugInputs)) {
+    renderDebug(ui.debug, debugState);
+    prevDebugInputs = debugInputs;
+  }
 }
 function animateCamera(target) {
   const from = store.getState().camera;

@@ -9,7 +9,8 @@
     "build": "node scripts/build-web.js",
     "test": "node scripts/sim-test.js",
     "data:refresh": "node scripts/data-refresh.js --refresh",
-    "data:build": "node scripts/data-refresh.js --build"
+    "data:build": "node scripts/data-refresh.js --build",
+    "data:neighbours": "node scripts/build-neighbours.js"
   },
   "dependencies": {
     "d3-geo": "^3.1.1",

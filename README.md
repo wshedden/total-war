@@ -25,10 +25,15 @@ Open `http://localhost:3000`.
 - `D`: toggle debug overlay
 - `Escape`: close help modal
 
-## Features in v0
+## Features in v1
 - Canvas world map with Natural Earth projection (`geoNaturalEarth1`)
 - Political overlay + data heatmap overlay
 - Country hover tooltip and right-side dossier
 - Deterministic seeded turn simulation
 - Save/load via localStorage + JSON export/import
 - Offline-fast startup after first data refresh
+
+- Neighbour graph cache (`data/cache/neighbours.json`) built from TopoJSON adjacency
+- Deterministic sparse relationship simulation per shared border (rel/tension/trust)
+- Diplomacy overlay and dossier neighbour section with relation/tension meters
+- Save/load includes compact relationship edge arrays

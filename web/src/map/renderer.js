@@ -5,6 +5,27 @@ import { rebuildPickCache } from './picking.js';
 import { applyCameraTransform } from './camera.js';
 import { selectActiveMetricRange, selectActiveMetricValue } from '../state/metricRange.js';
 
+function diplomacyFill(state, cca3) {
+  if (!state.selected) return '#2a3c55';
+  if (cca3 === state.selected) return '#f2c14e';
+  const edge = state.relations?.[state.selected]?.[cca3];
+  if (!edge) return '#1a2433';
+  const rel = edge.rel;
+  if (rel >= 35) return '#2f8f66';
+  if (rel <= -35) return '#a64f4f';
+  return '#6e7787';
+}
+
+function relationStroke(state, cca3) {
+  const edge = state.selected ? state.relations?.[state.selected]?.[cca3] : null;
+  if (!edge) return null;
+  const t = edge.tension / 100;
+  const width = 0.7 + t * 2.8;
+  const alpha = 0.15 + t * 0.7;
+  const hue = 125 - t * 125;
+  return { stroke: `hsla(${hue} 85% 60% / ${alpha})`, width };
+}
+
 export function createRenderer(canvas, topo, getState) {
   const ctx = canvas.getContext('2d');
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
@@ -62,13 +83,26 @@ export function createRenderer(canvas, topo, getState) {
       const cca3 = f.properties.cca3;
       const value = selectActiveMetricValue(state, cca3);
       const t = (value - metricMin) / ((metricMax - metricMin) || 1);
-      const fill = state.overlay === 'political' ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
+      const fill = state.overlay === 'heatmap'
+        ? heatmapColour(t)
+        : state.overlay === 'diplomacy'
+          ? diplomacyFill(state, cca3)
+          : stableCountryColour(cca3, state.seed);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
       ctx.fill(path2d);
       ctx.strokeStyle = '#1a2a3f';
       ctx.lineWidth = 0.75 / state.camera.zoom;
       ctx.stroke(path2d);
+
+      if (state.overlay === 'diplomacy' && state.selected) {
+        const border = relationStroke(state, cca3);
+        if (border) {
+          ctx.strokeStyle = border.stroke;
+          ctx.lineWidth = border.width / state.camera.zoom;
+          ctx.stroke(path2d);
+        }
+      }
     }
 
     if (spherePath2d) {

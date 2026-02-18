@@ -6,7 +6,7 @@ import { renderTooltip } from './ui/tooltip.js';
 import { renderLegend } from './ui/overlays.js';
 import { renderDebug } from './ui/debug.js';
 import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } from './ui/saveLoad.js';
-import { createStore, createInitialSimState } from './state/store.js';
+import { createStore, createInitialSimState, createInitialRelations } from './state/store.js';
 import { createActions } from './state/actions.js';
 import { selectActiveMetricRange } from './state/metricRange.js';
 import { createRenderer } from './map/renderer.js';
@@ -14,15 +14,34 @@ import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.j
 import { pickCountry } from './map/picking.js';
 import { createFpsCounter } from './util/perf.js';
 import { isTypingTarget } from './util/dom.js';
+import { getNeighbours } from './state/relationships.js';
 
 const root = document.getElementById('app');
+
+async function fetchJsonSafe(url, fallback) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return fallback;
+    return await res.json();
+  } catch {
+    return fallback;
+  }
+}
+
 root.textContent = 'Loading data…';
-const [countries, topo] = await Promise.all([
-  fetch('/api/countries').then((r) => r.json()),
-  fetch('/api/borders').then((r) => r.json())
+const [countries, topo, neighboursPayload, fullCountries] = await Promise.all([
+  fetchJsonSafe('/api/countries', []),
+  fetchJsonSafe('/api/borders', null),
+  fetchJsonSafe('/api/neighbours', { neighbours: {} }),
+  fetchJsonSafe('/api/countries/full', [])
 ]);
-const fullCountries = await fetch('/api/countries/full').then((r) => r.json());
-const countryIndex = Object.fromEntries(fullCountries.map((c) => [c.cca3, c]));
+const countryIndex = Object.fromEntries(fullCountries.filter((c) => c?.cca3).map((c) => [c.cca3, c]));
+if (!topo || !topo.objects?.countries) {
+  root.textContent = 'Failed to load border geometry cache. Run data build and refresh the page.';
+  throw new Error('Missing /api/borders topology payload');
+}
+const neighbours = neighboursPayload?.neighbours ?? {};
+const initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 
 root.innerHTML = '';
 const ui = buildLayout(root);
@@ -41,7 +60,11 @@ const store = createStore({
   events: [],
   camera: { x: 0, y: 0, zoom: 1 },
   countryIndex,
-  dynamic: createInitialSimState(countryIndex)
+  neighbours,
+  dynamic: createInitialSimState(countryIndex),
+  relations: initialRelations.relations,
+  relationEdges: initialRelations.edges,
+  postureByCountry: {}
 });
 const actions = createActions(store);
 const controls = renderTopbar(ui.topbar, actions);
@@ -51,7 +74,7 @@ controls.save.onclick = () => saveToLocal(makeSnapshot(store.getState()));
 controls.load.onclick = () => { const s = loadFromLocal(); if (s) actions.loadState(s); };
 controls.exportBtn.onclick = () => exportJson(makeSnapshot(store.getState()));
 controls.importBtn.onclick = async () => { const s = await importJsonFile(); if (s) actions.loadState(s); };
-controls.newGame.onclick = () => actions.loadState({ ...store.getState(), seed: (Math.random() * 1e9) | 0, turn: 0, events: [] });
+controls.newGame.onclick = () => actions.newGame((Math.random() * 1e9) | 0);
 controls.help.onclick = () => showHelp();
 
 const renderer = createRenderer(ui.canvas, topo, store.getState);
@@ -97,12 +120,16 @@ function getDossierInputs(state) {
   const eventSlice = selected
     ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join('|')
     : '';
+  const neighbourSlice = selected
+    ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join('|')
+    : '';
   return {
     selected,
     dossierOpen: state.dossierOpen,
     gdp: dyn?.gdp,
     militaryPct: dyn?.militaryPct,
-    eventSlice
+    eventSlice,
+    neighbourSlice
   };
 }
 

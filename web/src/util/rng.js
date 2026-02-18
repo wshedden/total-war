@@ -22,3 +22,12 @@ export function countryTurnRng(globalSeed, turn, cca3, channel = 'base') {
   const seed = hashString(`${globalSeed}:${turn}:${cca3}:${channel}`);
   return mulberry32(seed);
 }
+
+export function pairKey(a, b) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+export function rngPair(globalSeed, a, b, channel = 'pair') {
+  const seed = hashString(`${globalSeed}:${pairKey(a, b)}:${channel}`);
+  return mulberry32(seed);
+}
