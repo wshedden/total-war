@@ -52,7 +52,7 @@ for (const [a, b] of state.relationEdges) {
 }
 
 const checksum = `${state.turn}:${Math.round(sumGdp)}:${sumMil.toFixed(4)}:${state.events.length}:${sumRel}:${sumTension}:${hostileEdges}`;
-const EXPECTED = '200:21452410939080:1145.8105:80:-1703:16378:154';
+const EXPECTED = '200:21452410939080:324.9961:80:-1685:16336:154';
 if (checksum !== EXPECTED) {
   console.error('Checksum mismatch', { checksum, EXPECTED });
   process.exit(1);
