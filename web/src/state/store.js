@@ -1,5 +1,6 @@
 import { countryTurnRng } from '../util/rng.js';
 import { initRelations, stepRelations } from './relationships.js';
+import { DEFAULT_INFLUENCE, DEFAULT_POLICY, normalizeDynamicEntry } from './policies.js';
 
 function computePower(gdp, militaryPct, population) {
   const milAbs = Math.max(0, gdp * (militaryPct / 100));
@@ -38,8 +39,13 @@ export function createInitialSimState(countryIndex) {
       growthRate: 0.01,
       stability: 0.55,
       militarySpendAbs,
-      power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0)
+      power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0),
+      influence: DEFAULT_INFLUENCE,
+      policy: DEFAULT_POLICY,
+      actionUsedTurn: null,
+      cooldowns: {}
     };
+    dynamic[country.cca3] = normalizeDynamicEntry(dynamic[country.cca3]);
   });
   return dynamic;
 }
@@ -75,7 +81,7 @@ export function simulateTurn(state) {
     const militarySpendAbs = gdp * (militaryPct / 100);
     const power = computePower(gdp, militaryPct, country?.population ?? 0);
 
-    nextDynamic[cca3] = {
+    nextDynamic[cca3] = normalizeDynamicEntry({
       ...entry,
       gdp,
       militaryPct,
@@ -86,7 +92,7 @@ export function simulateTurn(state) {
       stability,
       militarySpendAbs,
       power
-    };
+    });
   }
 
   const relStep = stepRelations({
