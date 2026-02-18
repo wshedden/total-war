@@ -8,5 +8,9 @@ export function renderLegend(node, state) {
   }
   node.hidden = false;
   const { min, max } = selectActiveMetricRange(state);
-  node.innerHTML = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} → ${fmtCompact(max)}</div>`;
+  const markup = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} → ${fmtCompact(max)}</div>`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
 }

@@ -64,6 +64,77 @@ let hoverPickQueued = false;
 let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
 
+let prevTooltipInputs = null;
+let prevDossierInputs = null;
+let prevLegendInputs = null;
+let prevDebugInputs = null;
+
+function getTooltipInputs(state) {
+  const hovered = state.hovered;
+  const country = hovered ? state.countryIndex[hovered] : null;
+  const dyn = hovered ? state.dynamic[hovered] : null;
+  const metricValue = hovered
+    ? state.metric === 'militaryPercentGdp'
+      ? dyn?.militaryPct
+      : state.metric === 'gdp'
+        ? dyn?.gdp
+        : country?.indicators?.[state.metric]
+    : null;
+  return {
+    hovered,
+    x: mouse.x,
+    y: mouse.y,
+    metric: state.metric,
+    metricValue,
+    gdp: dyn?.gdp,
+    population: country?.population
+  };
+}
+
+function getDossierInputs(state) {
+  const selected = state.selected;
+  const dyn = selected ? state.dynamic[selected] : null;
+  const eventSlice = selected
+    ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join('|')
+    : '';
+  return {
+    selected,
+    dossierOpen: state.dossierOpen,
+    gdp: dyn?.gdp,
+    militaryPct: dyn?.militaryPct,
+    eventSlice
+  };
+}
+
+function getLegendInputs(state) {
+  const { min, max } = selectActiveMetricRange(state);
+  return {
+    overlay: state.overlay,
+    metric: state.metric,
+    min,
+    max
+  };
+}
+
+function getDebugInputs(state) {
+  return {
+    debug: state.debug,
+    fps: debugInfo.fps,
+    turn: state.turn,
+    hovered: state.hovered,
+    candidates: state.debugInfo?.candidates,
+    renderMs: state.debugInfo?.renderMs
+  };
+}
+
+function shallowEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((k) => a[k] === b[k]);
+}
+
 store.subscribe(() => { dirty = true; });
 window.addEventListener('resize', () => {
   renderer.resize();
@@ -146,18 +217,39 @@ function drawNow() {
   debugInfo.fps = fpsCounter.tick();
   debugInfo.renderMs = performance.now() - t0;
   const state = store.getState();
-  renderDossier(ui.dossier, state);
-  renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
-  renderLegend(ui.legend, {
-    ...state,
-    heatNorm(metric, dyn, c) {
-      const v = metric === 'militaryPercentGdp' ? dyn.militaryPct : metric === 'gdp' ? dyn.gdp : c.indicators[metric];
-      const rangeState = metric === state.metric ? state : { ...state, metric };
-      const { min, max } = selectActiveMetricRange(rangeState);
-      return (v - min) / ((max - min) || 1);
-    }
-  });
-  renderDebug(ui.debug, { ...state, debugInfo });
+
+  const tooltipInputs = getTooltipInputs(state);
+  if (!shallowEqual(prevTooltipInputs, tooltipInputs)) {
+    renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
+    prevTooltipInputs = tooltipInputs;
+  }
+
+  const dossierInputs = getDossierInputs(state);
+  if (!shallowEqual(prevDossierInputs, dossierInputs)) {
+    renderDossier(ui.dossier, state);
+    prevDossierInputs = dossierInputs;
+  }
+
+  const legendInputs = getLegendInputs(state);
+  if (!shallowEqual(prevLegendInputs, legendInputs)) {
+    renderLegend(ui.legend, {
+      ...state,
+      heatNorm(metric, dyn, c) {
+        const v = metric === 'militaryPercentGdp' ? dyn.militaryPct : metric === 'gdp' ? dyn.gdp : c.indicators[metric];
+        const rangeState = metric === state.metric ? state : { ...state, metric };
+        const { min, max } = selectActiveMetricRange(rangeState);
+        return (v - min) / ((max - min) || 1);
+      }
+    });
+    prevLegendInputs = legendInputs;
+  }
+
+  const debugState = { ...state, debugInfo };
+  const debugInputs = getDebugInputs(debugState);
+  if (!shallowEqual(prevDebugInputs, debugInputs)) {
+    renderDebug(ui.debug, debugState);
+    prevDebugInputs = debugInputs;
+  }
 }
 
 function animateCamera(target) {
