@@ -290,7 +290,9 @@ function drawNow() {
 
   const dossierStructuralInputs = getDossierStructuralInputs(state);
   if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
-    renderDossier(ui.dossier, state, actions);
+    renderDossier(ui.dossier, state, actions, () => {
+      dirty = true;
+    });
     prevDossierStructuralInputs = dossierStructuralInputs;
     prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
   } else {

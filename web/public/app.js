@@ -422,7 +422,7 @@ function relationCheck(edge) {
 var ACTION_DEFINITIONS = Object.freeze({
   improveRelations: {
     type: "improveRelations",
-    cost: 6,
+    cost: 5,
     cooldown: 2,
     priority: 2,
     check(state, actor, target) {
@@ -789,9 +789,9 @@ function formatInfluenceHint(influenceHint) {
   if (influenceHint.reasons.topGdpPercentile) reasons.push("top GDP");
   return `+${influenceHint.gain} next turn (${reasons.join(", ") || "none"})`;
 }
-function reasonLabel(reason, cooldownTurns = 0) {
+function reasonLabel(reason, cooldownTurns = 0, influence = 0, cost = 0) {
   if (reason === "actor-already-used-action-this-turn") return "Action already used this turn.";
-  if (reason === "insufficient-influence") return "Insufficient influence.";
+  if (reason === "insufficient-influence") return `Need ${cost} influence, have ${influence}.`;
   if (reason === "action-on-cooldown") return `On cooldown (${cooldownTurns} turn${cooldownTurns === 1 ? "" : "s"} remaining).`;
   if (!reason) return "";
   return `Precondition failed: ${reason.replaceAll("-", " ")}.`;
@@ -810,7 +810,7 @@ function getActionUiState(state, actor, target, type) {
     queued: false
   };
 }
-function renderDossier(node, state, actions2) {
+function renderDossier(node, state, actions2, onUiStateChange = null) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
     const markup2 = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
@@ -830,7 +830,7 @@ function renderDossier(node, state, actions2) {
   if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
   const diplomaticButtons = activeNeighbour ? Object.values(ACTION_DEFINITIONS).map((definition) => {
     const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
-    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns);
+    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns, dyn.influence, definition.cost);
     return `
         <div class="dip-action-row">
           <button
@@ -925,6 +925,7 @@ function renderDossier(node, state, actions2) {
       sortSelect.onchange = (event) => {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = "";
+        onUiStateChange?.();
       };
     }
     node.querySelectorAll("[data-policy-field]").forEach((input) => {
@@ -945,6 +946,7 @@ function renderDossier(node, state, actions2) {
       btn.onclick = () => {
         node.__diplomacyTarget = btn.getAttribute("data-target");
         node.__lastMarkup = "";
+        onUiStateChange?.();
       };
     });
     node.querySelectorAll("[data-action-type]").forEach((btn) => {
@@ -3826,7 +3828,9 @@ function drawNow() {
   }
   const dossierStructuralInputs = getDossierStructuralInputs(state);
   if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
-    renderDossier(ui.dossier, state, actions);
+    renderDossier(ui.dossier, state, actions, () => {
+      dirty = true;
+    });
     prevDossierStructuralInputs = dossierStructuralInputs;
     prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
   } else {

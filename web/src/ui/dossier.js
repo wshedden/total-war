@@ -84,7 +84,7 @@ function getActionUiState(state, actor, target, type) {
   };
 }
 
-export function renderDossier(node, state, actions) {
+export function renderDossier(node, state, actions, onUiStateChange = null) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
     const markup = '<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>';
@@ -207,6 +207,7 @@ export function renderDossier(node, state, actions) {
       sortSelect.onchange = (event) => {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = '';
+        onUiStateChange?.();
       };
     }
 
@@ -230,6 +231,7 @@ export function renderDossier(node, state, actions) {
       btn.onclick = () => {
         node.__diplomacyTarget = btn.getAttribute('data-target');
         node.__lastMarkup = '';
+        onUiStateChange?.();
       };
     });
 
