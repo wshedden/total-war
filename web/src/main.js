@@ -21,7 +21,7 @@ const [countries, topo] = await Promise.all([
   fetch('/api/countries').then((r) => r.json()),
   fetch('/api/borders').then((r) => r.json())
 ]);
-const fullCountries = await Promise.all(countries.map((c) => fetch(`/api/countries/${c.cca3}`).then((r) => r.json())));
+const fullCountries = await fetch('/api/countries/full').then((r) => r.json());
 const countryIndex = Object.fromEntries(fullCountries.map((c) => [c.cca3, c]));
 
 root.innerHTML = '';
