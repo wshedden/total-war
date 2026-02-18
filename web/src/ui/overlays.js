@@ -1,4 +1,5 @@
 import { fmtCompact } from '../util/format.js';
+import { selectActiveMetricRange } from '../state/metricRange.js';
 
 export function renderLegend(node, state) {
   if (state.overlay !== 'heatmap') {
@@ -6,12 +7,10 @@ export function renderLegend(node, state) {
     return;
   }
   node.hidden = false;
-  const values = Object.keys(state.dynamic).map((cca3) => {
-    const d = state.dynamic[cca3];
-    const c = state.countryIndex[cca3];
-    return state.metric === 'militaryPercentGdp' ? d.militaryPct : state.metric === 'gdp' ? d.gdp : c.indicators[state.metric];
-  }).filter(Number.isFinite);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  node.innerHTML = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} → ${fmtCompact(max)}</div>`;
+  const { min, max } = selectActiveMetricRange(state);
+  const markup = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} → ${fmtCompact(max)}</div>`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
 }

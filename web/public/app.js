@@ -119,6 +119,34 @@ function renderTooltip(node, state, x, y) {
   node.innerHTML = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
 }
 
+// web/src/state/metricRange.js
+function getActiveMetricValue(metric, dynamicEntry, country) {
+  if (metric === "militaryPercentGdp") return dynamicEntry?.militaryPct;
+  if (metric === "gdp") return dynamicEntry?.gdp;
+  return country?.indicators?.[metric];
+}
+var memoKey = "";
+var memoDynamic = null;
+var memoCountryIndex = null;
+var memoRange = { min: 0, max: 1 };
+function selectActiveMetricRange(state) {
+  const key = `${state.metric}:${state.turn}`;
+  if (memoKey === key && memoDynamic === state.dynamic && memoCountryIndex === state.countryIndex) {
+    return memoRange;
+  }
+  const values = Object.keys(state.dynamic).map((cca3) => getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3])).filter(Number.isFinite);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  memoKey = key;
+  memoDynamic = state.dynamic;
+  memoCountryIndex = state.countryIndex;
+  memoRange = { min, max };
+  return memoRange;
+}
+function selectActiveMetricValue(state, cca3) {
+  return getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3]);
+}
+
 // web/src/ui/overlays.js
 function renderLegend(node, state) {
   if (state.overlay !== "heatmap") {
@@ -126,13 +154,7 @@ function renderLegend(node, state) {
     return;
   }
   node.hidden = false;
-  const values = Object.keys(state.dynamic).map((cca3) => {
-    const d = state.dynamic[cca3];
-    const c = state.countryIndex[cca3];
-    return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
-  }).filter(Number.isFinite);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const { min, max } = selectActiveMetricRange(state);
   node.innerHTML = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
 }
 
@@ -1942,6 +1964,17 @@ function zoomAtPoint(camera, factor, px, py, width, height) {
   };
   return constrainCamera(next, width, height);
 }
+function applyCameraTransform(ctx, camera, width, height) {
+  ctx.translate(width / 2 + camera.x, height / 2 + camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-width / 2, -height / 2);
+}
+function screenToWorld(camera, x, y, width, height) {
+  return {
+    x: width / 2 + (x - (width / 2 + camera.x)) / camera.zoom,
+    y: height / 2 + (y - (height / 2 + camera.y)) / camera.zoom
+  };
+}
 function fitCameraToFeature(feature2, width, height) {
   const padding = Math.min(width, height) * 0.16;
   const baseProjection = projectionForCamera(width, height, { x: 0, y: 0, zoom: 1 });
@@ -1961,8 +1994,8 @@ function fitCameraToFeature(feature2, width, height) {
 }
 
 // web/src/map/projection.js
-function createProjection(width, height, camera) {
-  const projection2 = naturalEarth1_default().translate([width / 2 + camera.x, height / 2 + camera.y]).scale(camera.zoom * Math.min(width, height) * BASE_MAP_SCALE);
+function createProjection(width, height) {
+  const projection2 = naturalEarth1_default().translate([width / 2, height / 2]).scale(Math.min(width, height) * BASE_MAP_SCALE);
   const path = path_default(projection2);
   return { projection: projection2, path };
 }
@@ -1986,13 +2019,15 @@ function rebuildPickCache(features, path) {
     return { feature: feature2, path2d: p, bbox: b };
   });
 }
-function pickCountry(ctx, pickCache, x, y, tolerance = 3) {
+function pickCountry(ctx, pickCache, camera, width, height, x, y, tolerance = 3) {
+  const worldPoint = screenToWorld(camera, x, y, width, height);
+  const worldTolerance = tolerance / camera.zoom;
   const candidates = pickCache.filter((entry) => {
     const [[x05, y05], [x12, y12]] = entry.bbox;
-    return x >= x05 - tolerance && x <= x12 + tolerance && y >= y05 - tolerance && y <= y12 + tolerance;
+    return worldPoint.x >= x05 - worldTolerance && worldPoint.x <= x12 + worldTolerance && worldPoint.y >= y05 - worldTolerance && worldPoint.y <= y12 + worldTolerance;
   });
   for (let i = candidates.length - 1; i >= 0; i -= 1) {
-    if (ctx.isPointInPath(candidates[i].path2d, x, y)) {
+    if (ctx.isPointInPath(candidates[i].path2d, worldPoint.x, worldPoint.y)) {
       return { cca3: candidates[i].feature.properties.cca3, candidates: candidates.length };
     }
   }
@@ -2007,11 +2042,8 @@ function createRenderer(canvas, topo2, getState) {
   let width = 1;
   let height = 1;
   let pickCache = [];
-  let path = null;
-  let cameraKey = "";
-  let metricRangeKey = "";
-  let metricMin = 0;
-  let metricMax = 1;
+  let pickByCca3 = {};
+  let geometryKey = "";
   let spherePath2d = null;
   function resize() {
     width = canvas.clientWidth;
@@ -2020,29 +2052,27 @@ function createRenderer(canvas, topo2, getState) {
     canvas.height = Math.floor(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+  function ensureGeometryCache() {
+    const nextGeometryKey = `${width}:${height}:naturalEarth1`;
+    if (nextGeometryKey === geometryKey && pickCache.length && spherePath2d) return;
+    const { path } = createProjection(width, height);
+    pickCache = rebuildPickCache(world.features, path);
+    pickByCca3 = {};
+    for (const entry of pickCache) {
+      pickByCca3[entry.feature.properties.cca3] = entry;
+    }
+    spherePath2d = new Path2D(path({ type: "Sphere" }));
+    geometryKey = nextGeometryKey;
+  }
   function draw(alpha = 1) {
     const state = getState();
-    const nextCameraKey = `${width}:${height}:${state.camera.x.toFixed(2)}:${state.camera.y.toFixed(2)}:${state.camera.zoom.toFixed(4)}`;
-    if (nextCameraKey !== cameraKey || !path) {
-      ({ path } = createProjection(width, height, state.camera));
-      pickCache = rebuildPickCache(world.features, path);
-      spherePath2d = new Path2D(path({ type: "Sphere" }));
-      cameraKey = nextCameraKey;
-    }
-    const nextMetricRangeKey = `${state.metric}:${state.turn}`;
-    if (nextMetricRangeKey !== metricRangeKey) {
-      const metricValues = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3];
-        const c = state.countryIndex[cca3];
-        return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
-      }).filter(Number.isFinite);
-      metricMin = Math.min(...metricValues);
-      metricMax = Math.max(...metricValues);
-      metricRangeKey = nextMetricRangeKey;
-    }
+    ensureGeometryCache();
+    const { min: metricMin, max: metricMax } = selectActiveMetricRange(state);
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
+    ctx.save();
+    applyCameraTransform(ctx, state.camera, width, height);
     if (spherePath2d) {
       ctx.fillStyle = "#0d1828";
       ctx.globalAlpha = 0.3;
@@ -2051,16 +2081,14 @@ function createRenderer(canvas, topo2, getState) {
     for (const entry of pickCache) {
       const { feature: f, path2d } = entry;
       const cca3 = f.properties.cca3;
-      const dynamic = state.dynamic[cca3];
-      const c = state.countryIndex[cca3];
-      const value = state.metric === "militaryPercentGdp" ? dynamic.militaryPct : state.metric === "gdp" ? dynamic.gdp : c.indicators[state.metric];
+      const value = selectActiveMetricValue(state, cca3);
       const t = (value - metricMin) / (metricMax - metricMin || 1);
       const fill = state.overlay === "political" ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = fill;
       ctx.fill(path2d);
       ctx.strokeStyle = "#1a2a3f";
-      ctx.lineWidth = 0.75;
+      ctx.lineWidth = 0.75 / state.camera.zoom;
       ctx.stroke(path2d);
     }
     if (spherePath2d) {
@@ -2068,28 +2096,29 @@ function createRenderer(canvas, topo2, getState) {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = "rgba(166, 202, 244, 0.55)";
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.4 / state.camera.zoom;
       ctx.stroke(spherePath2d);
       ctx.restore();
     }
-    const hover = pickCache.find((e) => e.feature.properties.cca3 === state.hovered);
+    const hover = pickByCca3[state.hovered];
     if (hover) {
       ctx.save();
-      ctx.setLineDash([4, 4]);
+      ctx.setLineDash([4 / state.camera.zoom, 4 / state.camera.zoom]);
       ctx.strokeStyle = "rgba(255,255,255,.8)";
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.2 / state.camera.zoom;
       ctx.stroke(hover.path2d);
       ctx.restore();
     }
-    const selected = pickCache.find((e) => e.feature.properties.cca3 === state.selected);
+    const selected = pickByCca3[state.selected];
     if (selected) {
       ctx.save();
-      ctx.setLineDash([6, 4]);
+      ctx.setLineDash([6 / state.camera.zoom, 4 / state.camera.zoom]);
       ctx.strokeStyle = "#ffd166";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / state.camera.zoom;
       ctx.stroke(selected.path2d);
       ctx.restore();
     }
+    ctx.restore();
   }
   return { ctx, world, resize, draw, getPickCache: () => pickCache };
 }
@@ -2188,12 +2217,12 @@ window.addEventListener("mousemove", (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 4);
   debugInfo.candidates = hit.candidates;
   actions.setHover(hit.cca3);
 });
 ui.canvas.addEventListener("click", (e) => {
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 6);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);
@@ -2248,12 +2277,8 @@ function drawNow() {
     ...state,
     heatNorm(metric, dyn, c) {
       const v = metric === "militaryPercentGdp" ? dyn.militaryPct : metric === "gdp" ? dyn.gdp : c.indicators[metric];
-      const arr = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3];
-        const cc = state.countryIndex[cca3];
-        return metric === "militaryPercentGdp" ? d.militaryPct : metric === "gdp" ? d.gdp : cc.indicators[metric];
-      });
-      const min = Math.min(...arr), max = Math.max(...arr);
+      const rangeState = metric === state.metric ? state : { ...state, metric };
+      const { min, max } = selectActiveMetricRange(rangeState);
       return (v - min) / (max - min || 1);
     }
   });

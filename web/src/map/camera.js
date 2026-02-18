@@ -68,6 +68,19 @@ export function zoomAtPoint(camera, factor, px, py, width, height) {
   return constrainCamera(next, width, height);
 }
 
+export function applyCameraTransform(ctx, camera, width, height) {
+  ctx.translate(width / 2 + camera.x, height / 2 + camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-width / 2, -height / 2);
+}
+
+export function screenToWorld(camera, x, y, width, height) {
+  return {
+    x: width / 2 + (x - (width / 2 + camera.x)) / camera.zoom,
+    y: height / 2 + (y - (height / 2 + camera.y)) / camera.zoom
+  };
+}
+
 export function fitCameraToFeature(feature, width, height) {
   const padding = Math.min(width, height) * 0.16;
   const baseProjection = projectionForCamera(width, height, { x: 0, y: 0, zoom: 1 });

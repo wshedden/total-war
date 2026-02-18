@@ -8,6 +8,7 @@ import { renderDebug } from './ui/debug.js';
 import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } from './ui/saveLoad.js';
 import { createStore, createInitialSimState } from './state/store.js';
 import { createActions } from './state/actions.js';
+import { selectActiveMetricRange } from './state/metricRange.js';
 import { createRenderer } from './map/renderer.js';
 import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.js';
 import { pickCountry } from './map/picking.js';
@@ -20,7 +21,7 @@ const [countries, topo] = await Promise.all([
   fetch('/api/countries').then((r) => r.json()),
   fetch('/api/borders').then((r) => r.json())
 ]);
-const fullCountries = await Promise.all(countries.map((c) => fetch(`/api/countries/${c.cca3}`).then((r) => r.json())));
+const fullCountries = await fetch('/api/countries/full').then((r) => r.json());
 const countryIndex = Object.fromEntries(fullCountries.map((c) => [c.cca3, c]));
 
 root.innerHTML = '';
@@ -58,8 +59,81 @@ renderer.resize();
 actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
 let dirty = true;
 let mouse = { x: 0, y: 0 };
+let latestHoverPointer = null;
+let hoverPickQueued = false;
 let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
+
+let prevTooltipInputs = null;
+let prevDossierInputs = null;
+let prevLegendInputs = null;
+let prevDebugInputs = null;
+
+function getTooltipInputs(state) {
+  const hovered = state.hovered;
+  const country = hovered ? state.countryIndex[hovered] : null;
+  const dyn = hovered ? state.dynamic[hovered] : null;
+  const metricValue = hovered
+    ? state.metric === 'militaryPercentGdp'
+      ? dyn?.militaryPct
+      : state.metric === 'gdp'
+        ? dyn?.gdp
+        : country?.indicators?.[state.metric]
+    : null;
+  return {
+    hovered,
+    x: mouse.x,
+    y: mouse.y,
+    metric: state.metric,
+    metricValue,
+    gdp: dyn?.gdp,
+    population: country?.population
+  };
+}
+
+function getDossierInputs(state) {
+  const selected = state.selected;
+  const dyn = selected ? state.dynamic[selected] : null;
+  const eventSlice = selected
+    ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join('|')
+    : '';
+  return {
+    selected,
+    dossierOpen: state.dossierOpen,
+    gdp: dyn?.gdp,
+    militaryPct: dyn?.militaryPct,
+    eventSlice
+  };
+}
+
+function getLegendInputs(state) {
+  const { min, max } = selectActiveMetricRange(state);
+  return {
+    overlay: state.overlay,
+    metric: state.metric,
+    min,
+    max
+  };
+}
+
+function getDebugInputs(state) {
+  return {
+    debug: state.debug,
+    fps: debugInfo.fps,
+    turn: state.turn,
+    hovered: state.hovered,
+    candidates: state.debugInfo?.candidates,
+    renderMs: state.debugInfo?.renderMs
+  };
+}
+
+function shallowEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const aKeys = Object.keys(a);
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((k) => a[k] === b[k]);
+}
 
 store.subscribe(() => { dirty = true; });
 window.addEventListener('resize', () => {
@@ -81,12 +155,11 @@ window.addEventListener('mousemove', (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
-  debugInfo.candidates = hit.candidates;
-  actions.setHover(hit.cca3);
+  latestHoverPointer = { x: e.offsetX, y: e.offsetY };
+  hoverPickQueued = true;
 });
 ui.canvas.addEventListener('click', (e) => {
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 6);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);
@@ -117,6 +190,21 @@ function frame(now) {
     acc += dt * state.speed;
     while (acc >= 1) { actions.stepTurn(); acc -= 1; }
   }
+  if (hoverPickQueued && latestHoverPointer) {
+    const hit = pickCountry(
+      renderer.ctx,
+      renderer.getPickCache(),
+      state.camera,
+      ui.canvas.clientWidth,
+      ui.canvas.clientHeight,
+      latestHoverPointer.x,
+      latestHoverPointer.y,
+      4
+    );
+    debugInfo.candidates = hit.candidates;
+    actions.setHover(hit.cca3);
+    hoverPickQueued = false;
+  }
   if (dirty) drawNow();
   requestAnimationFrame(frame);
 }
@@ -129,21 +217,39 @@ function drawNow() {
   debugInfo.fps = fpsCounter.tick();
   debugInfo.renderMs = performance.now() - t0;
   const state = store.getState();
-  renderDossier(ui.dossier, state);
-  renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
-  renderLegend(ui.legend, {
-    ...state,
-    heatNorm(metric, dyn, c) {
-      const v = metric === 'militaryPercentGdp' ? dyn.militaryPct : metric === 'gdp' ? dyn.gdp : c.indicators[metric];
-      const arr = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3]; const cc = state.countryIndex[cca3];
-        return metric === 'militaryPercentGdp' ? d.militaryPct : metric === 'gdp' ? d.gdp : cc.indicators[metric];
-      });
-      const min = Math.min(...arr), max = Math.max(...arr);
-      return (v - min) / ((max - min) || 1);
-    }
-  });
-  renderDebug(ui.debug, { ...state, debugInfo });
+
+  const tooltipInputs = getTooltipInputs(state);
+  if (!shallowEqual(prevTooltipInputs, tooltipInputs)) {
+    renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
+    prevTooltipInputs = tooltipInputs;
+  }
+
+  const dossierInputs = getDossierInputs(state);
+  if (!shallowEqual(prevDossierInputs, dossierInputs)) {
+    renderDossier(ui.dossier, state);
+    prevDossierInputs = dossierInputs;
+  }
+
+  const legendInputs = getLegendInputs(state);
+  if (!shallowEqual(prevLegendInputs, legendInputs)) {
+    renderLegend(ui.legend, {
+      ...state,
+      heatNorm(metric, dyn, c) {
+        const v = metric === 'militaryPercentGdp' ? dyn.militaryPct : metric === 'gdp' ? dyn.gdp : c.indicators[metric];
+        const rangeState = metric === state.metric ? state : { ...state, metric };
+        const { min, max } = selectActiveMetricRange(rangeState);
+        return (v - min) / ((max - min) || 1);
+      }
+    });
+    prevLegendInputs = legendInputs;
+  }
+
+  const debugState = { ...state, debugInfo };
+  const debugInputs = getDebugInputs(debugState);
+  if (!shallowEqual(prevDebugInputs, debugInputs)) {
+    renderDebug(ui.debug, debugState);
+    prevDebugInputs = debugInputs;
+  }
 }
 
 function animateCamera(target) {

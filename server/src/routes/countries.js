@@ -1,10 +1,15 @@
 import { Router } from 'express';
-import { getCountry, getCountryList } from '../services/countryStore.js';
+import { getCountry, getCountryList, getFullCountryList } from '../services/countryStore.js';
 
 const router = Router();
 
 router.get('/', async (_req, res) => {
   const countries = await getCountryList();
+  res.json(countries);
+});
+
+router.get('/full', async (_req, res) => {
+  const countries = await getFullCountryList();
   res.json(countries);
 });
 
