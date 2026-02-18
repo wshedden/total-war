@@ -83,218 +83,6 @@ var num = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 });
 var fmtCompact = (value) => Number.isFinite(value) ? compact.format(value) : "\u2014";
 var fmtPercent = (value) => Number.isFinite(value) ? `${num.format(value)}%` : "\u2014";
 
-// web/src/state/influence.js
-var TURN_INFLUENCE_CONFIG = {
-  baseGain: 1,
-  stabilityGain: 1,
-  topGdpGain: 1,
-  stabilityThreshold: 0.7,
-  topGdpPercentile: 0.15,
-  maxInfluence: 50
-};
-function rankCountriesByGdp(dynamic) {
-  return Object.entries(dynamic).map(([cca3, entry]) => ({ cca3, gdp: entry?.gdp ?? 0 })).sort((a, b) => b.gdp - a.gdp || a.cca3.localeCompare(b.cca3));
-}
-function buildTopGdpCountrySet(dynamic, percentile = TURN_INFLUENCE_CONFIG.topGdpPercentile) {
-  const ranking = rankCountriesByGdp(dynamic);
-  const count = Math.max(1, Math.ceil(ranking.length * percentile));
-  return new Set(ranking.slice(0, count).map((item) => item.cca3));
-}
-function computeInfluenceGain(entry, isTopGdpCountry, config = TURN_INFLUENCE_CONFIG) {
-  let gain = config.baseGain;
-  if ((entry?.stability ?? 0) >= config.stabilityThreshold) gain += config.stabilityGain;
-  if (isTopGdpCountry) gain += config.topGdpGain;
-  return gain;
-}
-function applyInfluenceGain(entry, gain, maxInfluence = TURN_INFLUENCE_CONFIG.maxInfluence) {
-  const influence = Math.max(0, entry?.influence ?? 0);
-  return Math.min(maxInfluence, influence + gain);
-}
-
-// web/src/state/selectors.js
-function selectNextTurnGainHint(state, cca3, config = TURN_INFLUENCE_CONFIG) {
-  const entry = state?.dynamic?.[cca3];
-  if (!entry) return null;
-  const topGdpCountries = buildTopGdpCountrySet(state.dynamic, config.topGdpPercentile);
-  const inTopGdpPercentile = topGdpCountries.has(cca3);
-  const gain = computeInfluenceGain(entry, inTopGdpPercentile, config);
-  const nextInfluence = applyInfluenceGain(entry, gain, config.maxInfluence);
-  return {
-    gain,
-    nextInfluence,
-    maxInfluence: config.maxInfluence,
-    reasons: {
-      base: true,
-      stability: (entry.stability ?? 0) >= config.stabilityThreshold,
-      topGdpPercentile: inTopGdpPercentile
-    }
-  };
-}
-
-// web/src/ui/dossier.js
-function relLabel(rel, tension) {
-  if (rel <= -40 || tension >= 70) return "Hostile";
-  if (rel >= 40 && tension < 40) return "Friendly";
-  return "Wary";
-}
-function relBar(rel) {
-  const pct = (rel + 100) / 200 * 100;
-  return `<div class="rel-bar" title="Relationship -100 to 100"><i style="width:${pct.toFixed(1)}%"></i></div>`;
-}
-function tensionBar(tension) {
-  return `<div class="tense-bar" title="Border tension 0 to 100"><i style="width:${tension}%"></i></div>`;
-}
-function sortNeighbours(selected, state, mode) {
-  const items = (state.neighbours?.[selected.cca3] ?? []).map((code) => {
-    const edge = state.relations?.[selected.cca3]?.[code] ?? { rel: 0, tension: 0, trust: 50 };
-    return {
-      code,
-      name: state.countryIndex?.[code]?.name ?? code,
-      rel: edge.rel,
-      tension: edge.tension,
-      trust: edge.trust,
-      powerRatio: (state.dynamic?.[selected.cca3]?.power ?? 0) / Math.max(1, state.dynamic?.[code]?.power ?? 0)
-    };
-  });
-  if (mode === "name") items.sort((a, b) => a.name.localeCompare(b.name));
-  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.code.localeCompare(b.code));
-  return items;
-}
-function renderDossier(node, state) {
-  const selected = state.selected ? state.countryIndex[state.selected] : null;
-  if (!selected) {
-    const markup2 = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
-    if (node.__lastMarkup !== markup2) {
-      node.innerHTML = markup2;
-      node.__lastMarkup = markup2;
-    }
-    return;
-  }
-  if (!node.__sortMode) node.__sortMode = "negative";
-  const neighbours2 = sortNeighbours(selected, state, node.__sortMode);
-  const dyn = state.dynamic[selected.cca3];
-  const influenceHint = selectNextTurnGainHint(state, selected.cca3);
-  const influenceHintText = influenceHint ? `+${influenceHint.gain} next turn (${influenceHint.reasons.base ? "base" : ""}${influenceHint.reasons.stability ? ", stability" : ""}${influenceHint.reasons.topGdpPercentile ? ", top GDP" : ""})` : "N/A";
-  const markup = `
-    <h2>${selected.name}</h2>
-    <p>${selected.officialName}</p>
-    <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
-    <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
-    <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
-    <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
-    <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
-    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
-    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
-    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
-    <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
-    <h3>Neighbours</h3>
-    <div class="neighbour-head"><span>Sorted by ${node.__sortMode === "name" ? "name" : "worst relations"}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
-    <div class="neighbours">${neighbours2.map((n) => `
-      <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
-        <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
-        ${relBar(n.rel)}
-        ${tensionBar(n.tension)}
-        <div class="neighbour-meta"><span>${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
-      </div>
-    `).join("") || '<div class="events">No land neighbours in this dataset.</div>'}</div>
-    <h3>Recent events</h3>
-    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>"}</div>
-  `;
-  if (node.__lastMarkup !== markup) {
-    node.innerHTML = markup;
-    node.__lastMarkup = markup;
-    const sortBtn = node.querySelector(".neighbour-sort");
-    if (sortBtn) {
-      sortBtn.onclick = () => {
-        node.__sortMode = node.__sortMode === "name" ? "negative" : "name";
-        node.__lastMarkup = "";
-      };
-    }
-  }
-  node.classList.toggle("open", state.dossierOpen);
-}
-
-// web/src/ui/tooltip.js
-function renderTooltip(node, state, x, y) {
-  if (!state.hovered) {
-    node.hidden = true;
-    return;
-  }
-  const c = state.countryIndex[state.hovered];
-  const d = state.dynamic[state.hovered];
-  const markup = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
-  node.hidden = false;
-  node.style.left = `${x + 14}px`;
-  node.style.top = `${y + 14}px`;
-  if (node.__lastMarkup !== markup) {
-    node.innerHTML = markup;
-    node.__lastMarkup = markup;
-  }
-}
-
-// web/src/state/metricRange.js
-function getActiveMetricValue(metric, dynamicEntry, country) {
-  if (metric === "militaryPercentGdp") return dynamicEntry?.militaryPct;
-  if (metric === "gdp") return dynamicEntry?.gdp;
-  return country?.indicators?.[metric];
-}
-var memoKey = "";
-var memoDynamic = null;
-var memoCountryIndex = null;
-var memoRange = { min: 0, max: 1 };
-function selectActiveMetricRange(state) {
-  const key = `${state.metric}:${state.turn}`;
-  if (memoKey === key && memoDynamic === state.dynamic && memoCountryIndex === state.countryIndex) {
-    return memoRange;
-  }
-  const values = Object.keys(state.dynamic).map((cca3) => getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3])).filter(Number.isFinite);
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 1;
-  memoKey = key;
-  memoDynamic = state.dynamic;
-  memoCountryIndex = state.countryIndex;
-  memoRange = { min, max };
-  return memoRange;
-}
-function selectActiveMetricValue(state, cca3) {
-  return getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3]);
-}
-
-// web/src/ui/overlays.js
-function renderLegend(node, state) {
-  if (state.overlay === "heatmap") {
-    node.hidden = false;
-    const { min, max } = selectActiveMetricRange(state);
-    const markup = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
-    if (node.__lastMarkup !== markup) {
-      node.innerHTML = markup;
-      node.__lastMarkup = markup;
-    }
-    return;
-  }
-  if (state.overlay === "diplomacy") {
-    node.hidden = false;
-    const markup = state.selected ? "<div><strong>Diplomacy</strong></div><div>Green: positive \xB7 Gray: neutral \xB7 Red: negative</div><div>Stroke intensity = border tension</div>" : "<div><strong>Diplomacy</strong></div><div>Select a country to view neighbour relations.</div>";
-    if (node.__lastMarkup !== markup) {
-      node.innerHTML = markup;
-      node.__lastMarkup = markup;
-    }
-    return;
-  }
-  node.hidden = true;
-}
-
-// web/src/ui/debug.js
-function renderDebug(node, state) {
-  node.hidden = !state.debug;
-  if (!state.debug) return;
-  const markup = `FPS ${state.debugInfo.fps}<br/>Turn ${state.turn}<br/>Hover ${state.hovered ?? "\u2014"}<br/>Candidates ${state.debugInfo.candidates}<br/>Render ${state.debugInfo.renderMs.toFixed(2)} ms`;
-  if (node.__lastMarkup !== markup) {
-    node.innerHTML = markup;
-    node.__lastMarkup = markup;
-  }
-}
-
 // web/src/util/rng.js
 function hashString(input) {
   let h = 2166136261 >>> 0;
@@ -517,116 +305,6 @@ function hydrateRelations(neighbours2, relationEdges = []) {
   return { relations, edges };
 }
 
-// web/src/ui/saveLoad.js
-var KEY = "total-war-v0-save";
-function makeSnapshot(state) {
-  return {
-    seed: state.seed,
-    turn: state.turn,
-    paused: state.paused,
-    speed: state.speed,
-    camera: state.camera,
-    selected: state.selected,
-    overlay: state.overlay,
-    metric: state.metric,
-    dynamic: state.dynamic,
-    events: state.events,
-    postureByCountry: state.postureByCountry,
-    relationsEdges: serializeRelations(state.relationEdges, state.relations),
-    relationEffects: state.relationEffects
-  };
-}
-function saveToLocal(snapshot) {
-  localStorage.setItem(KEY, JSON.stringify(snapshot));
-}
-function loadFromLocal() {
-  const raw = localStorage.getItem(KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-function exportJson(snapshot) {
-  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `total-war-save-${Date.now()}.json`;
-  a.click();
-}
-function importJsonFile() {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/json";
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-      const text = await file.text();
-      try {
-        resolve(JSON.parse(text));
-      } catch {
-        resolve(null);
-      }
-    };
-    input.click();
-  });
-}
-
-// web/src/state/policies.js
-var DEFAULT_INFLUENCE = 5;
-var DEFAULT_POLICY = Object.freeze({
-  milTargetPct: 0.6,
-  growthFocus: 50,
-  stabilityFocus: 50,
-  stance: "neutral"
-});
-var STANCES = /* @__PURE__ */ new Set(["conciliatory", "neutral", "hardline"]);
-function clamp2(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
-function toNumber(value, fallback) {
-  const num2 = Number(value);
-  return Number.isFinite(num2) ? num2 : fallback;
-}
-function toInt(value, fallback) {
-  return Math.round(toNumber(value, fallback));
-}
-function clampInfluence(value) {
-  return clamp2(toInt(value, DEFAULT_INFLUENCE), 0, 100);
-}
-function clampPolicy(policy = {}) {
-  const milTargetPct = clamp2(toNumber(policy.milTargetPct, DEFAULT_POLICY.milTargetPct), 0.5, 10 / 12);
-  const growthFocus = clamp2(toInt(policy.growthFocus, DEFAULT_POLICY.growthFocus), 0, 100);
-  const stabilityFocus = clamp2(toInt(policy.stabilityFocus, DEFAULT_POLICY.stabilityFocus), 0, 100);
-  const stance = STANCES.has(policy.stance) ? policy.stance : DEFAULT_POLICY.stance;
-  return { milTargetPct, growthFocus, stabilityFocus, stance };
-}
-function clampActionUsage(actionState = {}) {
-  const actionUsedTurn = Number.isInteger(actionState.actionUsedTurn) ? actionState.actionUsedTurn : null;
-  const cooldowns = Object.fromEntries(
-    Object.entries(actionState.cooldowns ?? {}).map(([action, turns]) => [action, Math.max(0, toInt(turns, 0))])
-  );
-  return { actionUsedTurn, cooldowns };
-}
-function normalizeDynamicEntry(entry = {}) {
-  const actionState = clampActionUsage(entry);
-  return {
-    ...entry,
-    influence: clampInfluence(entry.influence),
-    policy: clampPolicy(entry.policy),
-    actionUsedTurn: actionState.actionUsedTurn,
-    cooldowns: actionState.cooldowns
-  };
-}
-function normalizeDynamicState(dynamic = {}, countryIndex2 = {}) {
-  return Object.keys(countryIndex2).reduce((acc2, cca3) => {
-    acc2[cca3] = normalizeDynamicEntry(dynamic[cca3]);
-    return acc2;
-  }, {});
-}
-
 // web/src/state/relationEffects.js
 var DEFAULT_STATE = Object.freeze({
   guaranteesByEdge: {},
@@ -729,7 +407,7 @@ function runRelationEffectsStage(relationEffects, turn) {
 
 // web/src/state/diplomaticActions.js
 var MAX_INFLUENCE = 100;
-function clamp3(value, min, max) {
+function clamp2(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 function decrementCooldowns(cooldowns = {}) {
@@ -969,9 +647,9 @@ function applyPlannedActions(state, plannedActions = []) {
     const effect = def.apply(edge, action);
     const updatedEdge = {
       ...edge,
-      rel: clamp3(effect.rel, -100, 100),
-      tension: clamp3(effect.tension, 0, 100),
-      trust: clamp3(effect.trust, 0, 100),
+      rel: clamp2(effect.rel, -100, 100),
+      tension: clamp2(effect.tension, 0, 100),
+      trust: clamp2(effect.trust, 0, 100),
       lastTurnUpdated: state.turn,
       modifiers: [...edge.modifiers ?? [], effect.modifier].filter((mod) => (mod?.turns ?? 0) > 0)
     };
@@ -991,7 +669,7 @@ function applyPlannedActions(state, plannedActions = []) {
       });
     }
     const actorEntry = nextDynamic[action.actor];
-    actorEntry.influence = clamp3((actorEntry.influence ?? 0) - def.cost, 0, MAX_INFLUENCE);
+    actorEntry.influence = clamp2((actorEntry.influence ?? 0) - def.cost, 0, MAX_INFLUENCE);
     actorEntry.actionUsedTurn = state.turn;
     actorEntry.cooldowns = {
       ...actorEntry.cooldowns,
@@ -1010,6 +688,448 @@ function applyPlannedActions(state, plannedActions = []) {
     events: actionEvents,
     relationEffects: nextRelationEffects
   };
+}
+
+// web/src/state/influence.js
+var TURN_INFLUENCE_CONFIG = {
+  baseGain: 1,
+  stabilityGain: 1,
+  topGdpGain: 1,
+  stabilityThreshold: 0.7,
+  topGdpPercentile: 0.15,
+  maxInfluence: 50
+};
+function rankCountriesByGdp(dynamic) {
+  return Object.entries(dynamic).map(([cca3, entry]) => ({ cca3, gdp: entry?.gdp ?? 0 })).sort((a, b) => b.gdp - a.gdp || a.cca3.localeCompare(b.cca3));
+}
+function buildTopGdpCountrySet(dynamic, percentile = TURN_INFLUENCE_CONFIG.topGdpPercentile) {
+  const ranking = rankCountriesByGdp(dynamic);
+  const count = Math.max(1, Math.ceil(ranking.length * percentile));
+  return new Set(ranking.slice(0, count).map((item) => item.cca3));
+}
+function computeInfluenceGain(entry, isTopGdpCountry, config = TURN_INFLUENCE_CONFIG) {
+  let gain = config.baseGain;
+  if ((entry?.stability ?? 0) >= config.stabilityThreshold) gain += config.stabilityGain;
+  if (isTopGdpCountry) gain += config.topGdpGain;
+  return gain;
+}
+function applyInfluenceGain(entry, gain, maxInfluence = TURN_INFLUENCE_CONFIG.maxInfluence) {
+  const influence = Math.max(0, entry?.influence ?? 0);
+  return Math.min(maxInfluence, influence + gain);
+}
+
+// web/src/state/selectors.js
+function selectNextTurnGainHint(state, cca3, config = TURN_INFLUENCE_CONFIG) {
+  const entry = state?.dynamic?.[cca3];
+  if (!entry) return null;
+  const topGdpCountries = buildTopGdpCountrySet(state.dynamic, config.topGdpPercentile);
+  const inTopGdpPercentile = topGdpCountries.has(cca3);
+  const gain = computeInfluenceGain(entry, inTopGdpPercentile, config);
+  const nextInfluence = applyInfluenceGain(entry, gain, config.maxInfluence);
+  return {
+    gain,
+    nextInfluence,
+    maxInfluence: config.maxInfluence,
+    reasons: {
+      base: true,
+      stability: (entry.stability ?? 0) >= config.stabilityThreshold,
+      topGdpPercentile: inTopGdpPercentile
+    }
+  };
+}
+
+// web/src/ui/dossier.js
+var STANCE_OPTIONS = [
+  { value: "conciliatory", label: "Conciliatory" },
+  { value: "neutral", label: "Neutral" },
+  { value: "hardline", label: "Hardline" }
+];
+function relLabel(rel, tension) {
+  if (rel <= -40 || tension >= 70) return "Hostile";
+  if (rel >= 40 && tension < 40) return "Friendly";
+  return "Wary";
+}
+function relBar(rel) {
+  const pct = (rel + 100) / 200 * 100;
+  return `<div class="rel-bar" title="Relationship -100 to 100"><i style="width:${pct.toFixed(1)}%"></i></div>`;
+}
+function tensionBar(tension) {
+  return `<div class="tense-bar" title="Border tension 0 to 100"><i style="width:${tension}%"></i></div>`;
+}
+function sortNeighbours(selected, state, mode) {
+  const items = (state.neighbours?.[selected.cca3] ?? []).map((code) => {
+    const edge = state.relations?.[selected.cca3]?.[code] ?? { rel: 0, tension: 0, trust: 50 };
+    return {
+      code,
+      name: state.countryIndex?.[code]?.name ?? code,
+      rel: edge.rel,
+      tension: edge.tension,
+      trust: edge.trust,
+      powerRatio: (state.dynamic?.[selected.cca3]?.power ?? 0) / Math.max(1, state.dynamic?.[code]?.power ?? 0)
+    };
+  });
+  if (mode === "name") items.sort((a, b) => a.name.localeCompare(b.name));
+  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.code.localeCompare(b.code));
+  return items;
+}
+function formatInfluenceHint(influenceHint) {
+  if (!influenceHint) return "N/A";
+  const reasons = [];
+  if (influenceHint.reasons.base) reasons.push("base");
+  if (influenceHint.reasons.stability) reasons.push("stability");
+  if (influenceHint.reasons.topGdpPercentile) reasons.push("top GDP");
+  return `+${influenceHint.gain} next turn (${reasons.join(", ") || "none"})`;
+}
+function reasonLabel(reason, cooldownTurns = 0) {
+  if (reason === "actor-already-used-action-this-turn") return "Action already used this turn.";
+  if (reason === "insufficient-influence") return "Insufficient influence.";
+  if (reason === "action-on-cooldown") return `On cooldown (${cooldownTurns} turn${cooldownTurns === 1 ? "" : "s"} remaining).`;
+  if (!reason) return "";
+  return `Precondition failed: ${reason.replaceAll("-", " ")}.`;
+}
+function getActionUiState(state, actor, target, type) {
+  const cooldownTurns = state.dynamic?.[actor]?.cooldowns?.[type] ?? 0;
+  const queued = state.queuedPlayerAction;
+  if (queued && queued.actor === actor && queued.target === target && queued.type === type) {
+    return { disabled: true, reason: "actor-already-used-action-this-turn", cooldownTurns, queued: true };
+  }
+  const check = checkActionPreconditions(state, { actor, target, type, source: "player" });
+  return {
+    disabled: !check.ok,
+    reason: check.reason,
+    cooldownTurns,
+    queued: false
+  };
+}
+function renderDossier(node, state, actions2) {
+  const selected = state.selected ? state.countryIndex[state.selected] : null;
+  if (!selected) {
+    const markup2 = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
+    if (node.__lastMarkup !== markup2) {
+      node.innerHTML = markup2;
+      node.__lastMarkup = markup2;
+    }
+    return;
+  }
+  if (!node.__sortMode) node.__sortMode = "negative";
+  const neighbours2 = sortNeighbours(selected, state, node.__sortMode);
+  const dyn = state.dynamic[selected.cca3];
+  const influenceHint = selectNextTurnGainHint(state, selected.cca3);
+  const influenceHintText = formatInfluenceHint(influenceHint);
+  const policy = dyn.policy ?? {};
+  const activeNeighbour = neighbours2.find((item) => item.code === node.__diplomacyTarget) ?? neighbours2[0] ?? null;
+  if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
+  const diplomaticButtons = activeNeighbour ? Object.values(ACTION_DEFINITIONS).map((definition) => {
+    const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
+    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns);
+    return `
+        <div class="dip-action-row">
+          <button
+            class="dip-action"
+            type="button"
+            data-action-type="${definition.type}"
+            ${uiState.disabled ? "disabled" : ""}
+            title="Influence cost: ${definition.cost}"
+          >
+            ${definition.type}${uiState.queued ? " (Queued)" : ""}
+            <span class="dip-cost">-${definition.cost} inf</span>
+          </button>
+          <div class="dip-action-meta">
+            ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
+            ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
+          </div>
+        </div>
+      `;
+  }).join("") : '<div class="events">No land neighbours in this dataset.</div>';
+  const markup = `
+    <h2>${selected.name}</h2>
+    <p>${selected.officialName}</p>
+    <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
+    <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
+    <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
+    <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
+    <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
+    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
+    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
+    <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
+
+    <h3>Policy controls</h3>
+    <div class="policy-controls">
+      <div class="policy-row">
+        <label for="policy-military">Military target (% GDP)</label>
+        <div class="policy-stepper">
+          <button class="policy-step" type="button" data-policy-step="-0.01">\u2212</button>
+          <input id="policy-military" class="policy-input policy-range" type="range" min="0.5" max="0.83" step="0.01" value="${policy.milTargetPct ?? 0.6}" data-policy-field="milTargetPct" />
+          <button class="policy-step" type="button" data-policy-step="0.01">+</button>
+          <input class="policy-input policy-number" type="number" min="0.5" max="0.83" step="0.01" value="${policy.milTargetPct ?? 0.6}" data-policy-field="milTargetPct" />
+        </div>
+      </div>
+      <div class="policy-row">
+        <label for="policy-growth">Growth focus (${policy.growthFocus ?? 50})</label>
+        <input id="policy-growth" class="policy-input policy-range" type="range" min="0" max="100" step="1" value="${policy.growthFocus ?? 50}" data-policy-field="growthFocus" />
+      </div>
+      <div class="policy-row">
+        <label for="policy-stability">Stability focus (${policy.stabilityFocus ?? 50})</label>
+        <input id="policy-stability" class="policy-input policy-range" type="range" min="0" max="100" step="1" value="${policy.stabilityFocus ?? 50}" data-policy-field="stabilityFocus" />
+      </div>
+      <div class="policy-row">
+        <label for="policy-stance">Stance</label>
+        <select id="policy-stance" class="policy-input" data-policy-field="stance">
+          ${STANCE_OPTIONS.map((item) => `<option value="${item.value}" ${policy.stance === item.value ? "selected" : ""}>${item.label}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+
+    <h3>Diplomatic actions</h3>
+    <div class="dip-targets">
+      ${neighbours2.map((item) => `<button type="button" class="dip-target ${activeNeighbour?.code === item.code ? "active" : ""}" data-target="${item.code}">${item.code}</button>`).join("") || '<div class="events">No valid targets.</div>'}
+    </div>
+    ${activeNeighbour ? `<div class="dip-target-name">Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ""}
+    <div class="dip-actions">${diplomaticButtons}</div>
+
+    <h3>Neighbours</h3>
+    <div class="neighbour-head"><span>Sorted by ${node.__sortMode === "name" ? "name" : "worst relations"}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
+    <div class="neighbours">${neighbours2.map((n) => `
+      <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
+        <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
+        ${relBar(n.rel)}
+        ${tensionBar(n.tension)}
+        <div class="neighbour-meta"><span>${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+      </div>
+    `).join("") || '<div class="events">No land neighbours in this dataset.</div>'}</div>
+    <h3>Recent events</h3>
+    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>"}</div>
+  `;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+    const sortBtn = node.querySelector(".neighbour-sort");
+    if (sortBtn) {
+      sortBtn.onclick = () => {
+        node.__sortMode = node.__sortMode === "name" ? "negative" : "name";
+        node.__lastMarkup = "";
+      };
+    }
+    node.querySelectorAll("[data-policy-field]").forEach((input) => {
+      const field = input.getAttribute("data-policy-field");
+      const eventName = input.tagName === "SELECT" ? "change" : "input";
+      input.addEventListener(eventName, (event) => {
+        actions2.setPolicyField(field, event.currentTarget.value, selected.cca3);
+      });
+    });
+    node.querySelectorAll("[data-policy-step]").forEach((btn) => {
+      btn.onclick = () => {
+        const delta = Number(btn.getAttribute("data-policy-step"));
+        const current = Number(state.dynamic?.[selected.cca3]?.policy?.milTargetPct ?? 0.6);
+        actions2.setPolicyField("milTargetPct", current + delta, selected.cca3);
+      };
+    });
+    node.querySelectorAll("[data-target]").forEach((btn) => {
+      btn.onclick = () => {
+        node.__diplomacyTarget = btn.getAttribute("data-target");
+        node.__lastMarkup = "";
+      };
+    });
+    node.querySelectorAll("[data-action-type]").forEach((btn) => {
+      btn.onclick = () => {
+        if (!node.__diplomacyTarget) return;
+        actions2.queuePlayerDiplomaticAction(btn.getAttribute("data-action-type"), node.__diplomacyTarget, selected.cca3);
+      };
+    });
+  }
+  node.classList.toggle("open", state.dossierOpen);
+}
+
+// web/src/ui/tooltip.js
+function renderTooltip(node, state, x, y) {
+  if (!state.hovered) {
+    node.hidden = true;
+    return;
+  }
+  const c = state.countryIndex[state.hovered];
+  const d = state.dynamic[state.hovered];
+  const markup = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
+  node.hidden = false;
+  node.style.left = `${x + 14}px`;
+  node.style.top = `${y + 14}px`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
+}
+
+// web/src/state/metricRange.js
+function getActiveMetricValue(metric, dynamicEntry, country) {
+  if (metric === "militaryPercentGdp") return dynamicEntry?.militaryPct;
+  if (metric === "gdp") return dynamicEntry?.gdp;
+  return country?.indicators?.[metric];
+}
+var memoKey = "";
+var memoDynamic = null;
+var memoCountryIndex = null;
+var memoRange = { min: 0, max: 1 };
+function selectActiveMetricRange(state) {
+  const key = `${state.metric}:${state.turn}`;
+  if (memoKey === key && memoDynamic === state.dynamic && memoCountryIndex === state.countryIndex) {
+    return memoRange;
+  }
+  const values = Object.keys(state.dynamic).map((cca3) => getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3])).filter(Number.isFinite);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  memoKey = key;
+  memoDynamic = state.dynamic;
+  memoCountryIndex = state.countryIndex;
+  memoRange = { min, max };
+  return memoRange;
+}
+function selectActiveMetricValue(state, cca3) {
+  return getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3]);
+}
+
+// web/src/ui/overlays.js
+function renderLegend(node, state) {
+  if (state.overlay === "heatmap") {
+    node.hidden = false;
+    const { min, max } = selectActiveMetricRange(state);
+    const markup = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
+    if (node.__lastMarkup !== markup) {
+      node.innerHTML = markup;
+      node.__lastMarkup = markup;
+    }
+    return;
+  }
+  if (state.overlay === "diplomacy") {
+    node.hidden = false;
+    const markup = state.selected ? "<div><strong>Diplomacy</strong></div><div>Green: positive \xB7 Gray: neutral \xB7 Red: negative</div><div>Stroke intensity = border tension</div>" : "<div><strong>Diplomacy</strong></div><div>Select a country to view neighbour relations.</div>";
+    if (node.__lastMarkup !== markup) {
+      node.innerHTML = markup;
+      node.__lastMarkup = markup;
+    }
+    return;
+  }
+  node.hidden = true;
+}
+
+// web/src/ui/debug.js
+function renderDebug(node, state) {
+  node.hidden = !state.debug;
+  if (!state.debug) return;
+  const markup = `FPS ${state.debugInfo.fps}<br/>Turn ${state.turn}<br/>Hover ${state.hovered ?? "\u2014"}<br/>Candidates ${state.debugInfo.candidates}<br/>Render ${state.debugInfo.renderMs.toFixed(2)} ms`;
+  if (node.__lastMarkup !== markup) {
+    node.innerHTML = markup;
+    node.__lastMarkup = markup;
+  }
+}
+
+// web/src/ui/saveLoad.js
+var KEY = "total-war-v0-save";
+function makeSnapshot(state) {
+  return {
+    seed: state.seed,
+    turn: state.turn,
+    paused: state.paused,
+    speed: state.speed,
+    camera: state.camera,
+    selected: state.selected,
+    overlay: state.overlay,
+    metric: state.metric,
+    dynamic: state.dynamic,
+    events: state.events,
+    postureByCountry: state.postureByCountry,
+    relationsEdges: serializeRelations(state.relationEdges, state.relations),
+    relationEffects: state.relationEffects
+  };
+}
+function saveToLocal(snapshot) {
+  localStorage.setItem(KEY, JSON.stringify(snapshot));
+}
+function loadFromLocal() {
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function exportJson(snapshot) {
+  const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `total-war-save-${Date.now()}.json`;
+  a.click();
+}
+function importJsonFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return resolve(null);
+      const text = await file.text();
+      try {
+        resolve(JSON.parse(text));
+      } catch {
+        resolve(null);
+      }
+    };
+    input.click();
+  });
+}
+
+// web/src/state/policies.js
+var DEFAULT_INFLUENCE = 5;
+var DEFAULT_POLICY = Object.freeze({
+  milTargetPct: 0.6,
+  growthFocus: 50,
+  stabilityFocus: 50,
+  stance: "neutral"
+});
+var STANCES = /* @__PURE__ */ new Set(["conciliatory", "neutral", "hardline"]);
+function clamp3(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+function toNumber(value, fallback) {
+  const num2 = Number(value);
+  return Number.isFinite(num2) ? num2 : fallback;
+}
+function toInt(value, fallback) {
+  return Math.round(toNumber(value, fallback));
+}
+function clampInfluence(value) {
+  return clamp3(toInt(value, DEFAULT_INFLUENCE), 0, 100);
+}
+function clampPolicy(policy = {}) {
+  const milTargetPct = clamp3(toNumber(policy.milTargetPct, DEFAULT_POLICY.milTargetPct), 0.5, 10 / 12);
+  const growthFocus = clamp3(toInt(policy.growthFocus, DEFAULT_POLICY.growthFocus), 0, 100);
+  const stabilityFocus = clamp3(toInt(policy.stabilityFocus, DEFAULT_POLICY.stabilityFocus), 0, 100);
+  const stance = STANCES.has(policy.stance) ? policy.stance : DEFAULT_POLICY.stance;
+  return { milTargetPct, growthFocus, stabilityFocus, stance };
+}
+function clampActionUsage(actionState = {}) {
+  const actionUsedTurn = Number.isInteger(actionState.actionUsedTurn) ? actionState.actionUsedTurn : null;
+  const cooldowns = Object.fromEntries(
+    Object.entries(actionState.cooldowns ?? {}).map(([action, turns]) => [action, Math.max(0, toInt(turns, 0))])
+  );
+  return { actionUsedTurn, cooldowns };
+}
+function normalizeDynamicEntry(entry = {}) {
+  const actionState = clampActionUsage(entry);
+  return {
+    ...entry,
+    influence: clampInfluence(entry.influence),
+    policy: clampPolicy(entry.policy),
+    actionUsedTurn: actionState.actionUsedTurn,
+    cooldowns: actionState.cooldowns
+  };
+}
+function normalizeDynamicState(dynamic = {}, countryIndex2 = {}) {
+  return Object.keys(countryIndex2).reduce((acc2, cca3) => {
+    acc2[cca3] = normalizeDynamicEntry(dynamic[cca3]);
+    return acc2;
+  }, {});
 }
 
 // web/src/state/store.js
@@ -1248,9 +1368,45 @@ function createActions(store2) {
           relations,
           relationEdges: edges,
           postureByCountry: {},
-          relationEffects: createInitialRelationEffects()
+          relationEffects: createInitialRelationEffects(),
+          queuedPlayerAction: null
         };
       });
+    },
+    setPolicyField(field, value, cca3 = null) {
+      store2.setState((s) => {
+        const actor = cca3 ?? s.selected;
+        if (!actor || !s.dynamic?.[actor]) return s;
+        if (!["milTargetPct", "growthFocus", "stabilityFocus", "stance"].includes(field)) return s;
+        const entry = s.dynamic[actor];
+        const nextPolicy = clampPolicy({
+          ...entry.policy ?? {},
+          [field]: value
+        });
+        return {
+          ...s,
+          dynamic: {
+            ...s.dynamic,
+            [actor]: {
+              ...entry,
+              policy: nextPolicy
+            }
+          }
+        };
+      });
+    },
+    queuePlayerDiplomaticAction(type, target, actor = null) {
+      store2.setState((s) => {
+        const actionActor = actor ?? s.selected;
+        if (!actionActor || !target || !ACTION_DEFINITIONS[type]) return s;
+        const action = { actor: actionActor, target, type, source: "player" };
+        const check = checkActionPreconditions(s, action);
+        if (!check.ok) return s;
+        return { ...s, queuedPlayerAction: action };
+      });
+    },
+    clearQueuedPlayerDiplomaticAction() {
+      store2.setState((s) => s.queuedPlayerAction ? { ...s, queuedPlayerAction: null } : s);
     },
     loadState(snapshot) {
       store2.setState((s) => {
@@ -1262,7 +1418,8 @@ function createActions(store2) {
           relations: hydrated.relations,
           relationEdges: hydrated.edges,
           postureByCountry: snapshot.postureByCountry ?? {},
-          relationEffects: hydrateRelationEffectsState(snapshot.relationEffects)
+          relationEffects: hydrateRelationEffectsState(snapshot.relationEffects),
+          queuedPlayerAction: snapshot.queuedPlayerAction ?? null
         };
       });
     }
@@ -3251,6 +3408,9 @@ function getDossierInputs(state) {
   const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
   const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join("|") : "";
   const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join("|") : "";
+  const policy = dyn?.policy;
+  const selectedCooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : "";
+  const queuedAction = state.queuedPlayerAction ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}` : "";
   return {
     selected,
     dossierOpen: state.dossierOpen,
@@ -3260,6 +3420,14 @@ function getDossierInputs(state) {
     influence: dyn?.influence,
     influenceGainHint: influenceHint?.gain,
     influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
+    policyMilitaryTarget: policy?.milTargetPct,
+    policyGrowthFocus: policy?.growthFocus,
+    policyStabilityFocus: policy?.stabilityFocus,
+    policyStance: policy?.stance,
+    actionUsedTurn: dyn?.actionUsedTurn,
+    cooldowns: selectedCooldowns,
+    queuedAction,
+    turn: state.turn,
     eventSlice,
     neighbourSlice
   };
@@ -3390,7 +3558,7 @@ function drawNow() {
   }
   const dossierInputs = getDossierInputs(state);
   if (!shallowEqual(prevDossierInputs, dossierInputs)) {
-    renderDossier(ui.dossier, state);
+    renderDossier(ui.dossier, state, actions);
     prevDossierInputs = dossierInputs;
   }
   const legendInputs = getLegendInputs(state);

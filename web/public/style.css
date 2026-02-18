@@ -42,3 +42,24 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .rel-bar i { background: linear-gradient(90deg, #dd5a4f 0%, #9aa8ba 50%, #52c087 100%); }
 .tense-bar i { background: linear-gradient(90deg, #4db67f 0%, #f0a240 55%, #dc5a4f 100%); }
 .neighbour-meta { display:flex; flex-wrap:wrap; gap:.45rem; font-size:12px; color:var(--muted); }
+
+.policy-controls { display:grid; gap:.55rem; margin-bottom:.75rem; }
+.policy-row { display:grid; gap:.3rem; }
+.policy-row label { font-size:12px; color:var(--muted); }
+.policy-stepper { display:grid; grid-template-columns:auto 1fr auto auto; gap:.35rem; align-items:center; }
+.policy-step { padding:.2rem .45rem; line-height:1; }
+.policy-input { width:100%; }
+.policy-number { max-width:84px; }
+.dip-targets { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.45rem; }
+.dip-target { font-size:12px; padding:.2rem .45rem; }
+.dip-target.active { border-color:var(--accent); color:var(--accent); }
+.dip-target-name { font-size:13px; color:var(--muted); margin-bottom:.35rem; }
+.dip-actions { display:grid; gap:.45rem; margin-bottom:.8rem; }
+.dip-action-row { background:#121c2c; border:1px solid #25364e; border-radius:8px; padding:.4rem; }
+.dip-action { display:flex; justify-content:space-between; width:100%; margin-bottom:.3rem; text-transform:capitalize; }
+.dip-cost { font-size:12px; color:var(--muted); }
+.dip-action-meta { display:grid; gap:.2rem; }
+.dip-cooldown { font-size:12px; color:#f0a240; }
+.dip-cooldown-ready { color:#52c087; }
+.dip-disabled-reason { font-size:12px; color:var(--danger); }
+.dip-disabled-reason-ready { color:var(--muted); }

@@ -1,5 +1,12 @@
 import { fmtCompact, fmtPercent } from '../util/format.js';
+import { ACTION_DEFINITIONS, checkActionPreconditions } from '../state/diplomaticActions.js';
 import { selectNextTurnGainHint } from '../state/selectors.js';
+
+const STANCE_OPTIONS = [
+  { value: 'conciliatory', label: 'Conciliatory' },
+  { value: 'neutral', label: 'Neutral' },
+  { value: 'hardline', label: 'Hardline' }
+];
 
 function relLabel(rel, tension) {
   if (rel <= -40 || tension >= 70) return 'Hostile';
@@ -33,7 +40,40 @@ function sortNeighbours(selected, state, mode) {
   return items;
 }
 
-export function renderDossier(node, state) {
+function formatInfluenceHint(influenceHint) {
+  if (!influenceHint) return 'N/A';
+  const reasons = [];
+  if (influenceHint.reasons.base) reasons.push('base');
+  if (influenceHint.reasons.stability) reasons.push('stability');
+  if (influenceHint.reasons.topGdpPercentile) reasons.push('top GDP');
+  return `+${influenceHint.gain} next turn (${reasons.join(', ') || 'none'})`;
+}
+
+function reasonLabel(reason, cooldownTurns = 0) {
+  if (reason === 'actor-already-used-action-this-turn') return 'Action already used this turn.';
+  if (reason === 'insufficient-influence') return 'Insufficient influence.';
+  if (reason === 'action-on-cooldown') return `On cooldown (${cooldownTurns} turn${cooldownTurns === 1 ? '' : 's'} remaining).`;
+  if (!reason) return '';
+  return `Precondition failed: ${reason.replaceAll('-', ' ')}.`;
+}
+
+function getActionUiState(state, actor, target, type) {
+  const cooldownTurns = state.dynamic?.[actor]?.cooldowns?.[type] ?? 0;
+  const queued = state.queuedPlayerAction;
+  if (queued && queued.actor === actor && queued.target === target && queued.type === type) {
+    return { disabled: true, reason: 'actor-already-used-action-this-turn', cooldownTurns, queued: true };
+  }
+
+  const check = checkActionPreconditions(state, { actor, target, type, source: 'player' });
+  return {
+    disabled: !check.ok,
+    reason: check.reason,
+    cooldownTurns,
+    queued: false
+  };
+}
+
+export function renderDossier(node, state, actions) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
     const markup = '<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>';
@@ -49,9 +89,36 @@ export function renderDossier(node, state) {
 
   const dyn = state.dynamic[selected.cca3];
   const influenceHint = selectNextTurnGainHint(state, selected.cca3);
-  const influenceHintText = influenceHint
-    ? `+${influenceHint.gain} next turn (${influenceHint.reasons.base ? 'base' : ''}${influenceHint.reasons.stability ? ', stability' : ''}${influenceHint.reasons.topGdpPercentile ? ', top GDP' : ''})`
-    : 'N/A';
+  const influenceHintText = formatInfluenceHint(influenceHint);
+  const policy = dyn.policy ?? {};
+  const activeNeighbour = neighbours.find((item) => item.code === node.__diplomacyTarget) ?? neighbours[0] ?? null;
+  if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
+
+  const diplomaticButtons = activeNeighbour
+    ? Object.values(ACTION_DEFINITIONS).map((definition) => {
+      const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
+      const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns);
+      return `
+        <div class="dip-action-row">
+          <button
+            class="dip-action"
+            type="button"
+            data-action-type="${definition.type}"
+            ${uiState.disabled ? 'disabled' : ''}
+            title="Influence cost: ${definition.cost}"
+          >
+            ${definition.type}${uiState.queued ? ' (Queued)' : ''}
+            <span class="dip-cost">-${definition.cost} inf</span>
+          </button>
+          <div class="dip-action-meta">
+            ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
+            ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
+          </div>
+        </div>
+      `;
+    }).join('')
+    : '<div class="events">No land neighbours in this dataset.</div>';
+
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
@@ -64,6 +131,41 @@ export function renderDossier(node, state) {
     <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
     <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
+
+    <h3>Policy controls</h3>
+    <div class="policy-controls">
+      <div class="policy-row">
+        <label for="policy-military">Military target (% GDP)</label>
+        <div class="policy-stepper">
+          <button class="policy-step" type="button" data-policy-step="-0.01">−</button>
+          <input id="policy-military" class="policy-input policy-range" type="range" min="0.5" max="0.83" step="0.01" value="${policy.milTargetPct ?? 0.6}" data-policy-field="milTargetPct" />
+          <button class="policy-step" type="button" data-policy-step="0.01">+</button>
+          <input class="policy-input policy-number" type="number" min="0.5" max="0.83" step="0.01" value="${policy.milTargetPct ?? 0.6}" data-policy-field="milTargetPct" />
+        </div>
+      </div>
+      <div class="policy-row">
+        <label for="policy-growth">Growth focus (${policy.growthFocus ?? 50})</label>
+        <input id="policy-growth" class="policy-input policy-range" type="range" min="0" max="100" step="1" value="${policy.growthFocus ?? 50}" data-policy-field="growthFocus" />
+      </div>
+      <div class="policy-row">
+        <label for="policy-stability">Stability focus (${policy.stabilityFocus ?? 50})</label>
+        <input id="policy-stability" class="policy-input policy-range" type="range" min="0" max="100" step="1" value="${policy.stabilityFocus ?? 50}" data-policy-field="stabilityFocus" />
+      </div>
+      <div class="policy-row">
+        <label for="policy-stance">Stance</label>
+        <select id="policy-stance" class="policy-input" data-policy-field="stance">
+          ${STANCE_OPTIONS.map((item) => `<option value="${item.value}" ${policy.stance === item.value ? 'selected' : ''}>${item.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <h3>Diplomatic actions</h3>
+    <div class="dip-targets">
+      ${neighbours.map((item) => `<button type="button" class="dip-target ${activeNeighbour?.code === item.code ? 'active' : ''}" data-target="${item.code}">${item.code}</button>`).join('') || '<div class="events">No valid targets.</div>'}
+    </div>
+    ${activeNeighbour ? `<div class="dip-target-name">Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ''}
+    <div class="dip-actions">${diplomaticButtons}</div>
+
     <h3>Neighbours</h3>
     <div class="neighbour-head"><span>Sorted by ${node.__sortMode === 'name' ? 'name' : 'worst relations'}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
     <div class="neighbours">${neighbours.map((n) => `
@@ -77,9 +179,11 @@ export function renderDossier(node, state) {
     <h3>Recent events</h3>
     <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} ↔ ${e.secondary})` : ''}</div>`).join('') || '<div>None.</div>'}</div>
   `;
+
   if (node.__lastMarkup !== markup) {
     node.innerHTML = markup;
     node.__lastMarkup = markup;
+
     const sortBtn = node.querySelector('.neighbour-sort');
     if (sortBtn) {
       sortBtn.onclick = () => {
@@ -87,6 +191,37 @@ export function renderDossier(node, state) {
         node.__lastMarkup = '';
       };
     }
+
+    node.querySelectorAll('[data-policy-field]').forEach((input) => {
+      const field = input.getAttribute('data-policy-field');
+      const eventName = input.tagName === 'SELECT' ? 'change' : 'input';
+      input.addEventListener(eventName, (event) => {
+        actions.setPolicyField(field, event.currentTarget.value, selected.cca3);
+      });
+    });
+
+    node.querySelectorAll('[data-policy-step]').forEach((btn) => {
+      btn.onclick = () => {
+        const delta = Number(btn.getAttribute('data-policy-step'));
+        const current = Number(state.dynamic?.[selected.cca3]?.policy?.milTargetPct ?? 0.6);
+        actions.setPolicyField('milTargetPct', current + delta, selected.cca3);
+      };
+    });
+
+    node.querySelectorAll('[data-target]').forEach((btn) => {
+      btn.onclick = () => {
+        node.__diplomacyTarget = btn.getAttribute('data-target');
+        node.__lastMarkup = '';
+      };
+    });
+
+    node.querySelectorAll('[data-action-type]').forEach((btn) => {
+      btn.onclick = () => {
+        if (!node.__diplomacyTarget) return;
+        actions.queuePlayerDiplomaticAction(btn.getAttribute('data-action-type'), node.__diplomacyTarget, selected.cca3);
+      };
+    });
   }
+
   node.classList.toggle('open', state.dossierOpen);
 }
