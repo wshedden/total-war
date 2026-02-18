@@ -9,6 +9,7 @@ import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } 
 import { createStore, createInitialSimState, createInitialRelations } from './state/store.js';
 import { createActions } from './state/actions.js';
 import { selectActiveMetricRange } from './state/metricRange.js';
+import { selectNextTurnGainHint } from './state/selectors.js';
 import { createRenderer } from './map/renderer.js';
 import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.js';
 import { pickCountry } from './map/picking.js';
@@ -117,6 +118,7 @@ function getTooltipInputs(state) {
 function getDossierInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
+  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
   const eventSlice = selected
     ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join('|')
     : '';
@@ -128,6 +130,10 @@ function getDossierInputs(state) {
     dossierOpen: state.dossierOpen,
     gdp: dyn?.gdp,
     militaryPct: dyn?.militaryPct,
+    stability: dyn?.stability,
+    influence: dyn?.influence,
+    influenceGainHint: influenceHint?.gain,
+    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
     eventSlice,
     neighbourSlice
   };

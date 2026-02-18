@@ -83,6 +83,54 @@ var num = new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 });
 var fmtCompact = (value) => Number.isFinite(value) ? compact.format(value) : "\u2014";
 var fmtPercent = (value) => Number.isFinite(value) ? `${num.format(value)}%` : "\u2014";
 
+// web/src/state/influence.js
+var TURN_INFLUENCE_CONFIG = {
+  baseGain: 1,
+  stabilityGain: 1,
+  topGdpGain: 1,
+  stabilityThreshold: 0.7,
+  topGdpPercentile: 0.15,
+  maxInfluence: 50
+};
+function rankCountriesByGdp(dynamic) {
+  return Object.entries(dynamic).map(([cca3, entry]) => ({ cca3, gdp: entry?.gdp ?? 0 })).sort((a, b) => b.gdp - a.gdp || a.cca3.localeCompare(b.cca3));
+}
+function buildTopGdpCountrySet(dynamic, percentile = TURN_INFLUENCE_CONFIG.topGdpPercentile) {
+  const ranking = rankCountriesByGdp(dynamic);
+  const count = Math.max(1, Math.ceil(ranking.length * percentile));
+  return new Set(ranking.slice(0, count).map((item) => item.cca3));
+}
+function computeInfluenceGain(entry, isTopGdpCountry, config = TURN_INFLUENCE_CONFIG) {
+  let gain = config.baseGain;
+  if ((entry?.stability ?? 0) >= config.stabilityThreshold) gain += config.stabilityGain;
+  if (isTopGdpCountry) gain += config.topGdpGain;
+  return gain;
+}
+function applyInfluenceGain(entry, gain, maxInfluence = TURN_INFLUENCE_CONFIG.maxInfluence) {
+  const influence = Math.max(0, entry?.influence ?? 0);
+  return Math.min(maxInfluence, influence + gain);
+}
+
+// web/src/state/selectors.js
+function selectNextTurnGainHint(state, cca3, config = TURN_INFLUENCE_CONFIG) {
+  const entry = state?.dynamic?.[cca3];
+  if (!entry) return null;
+  const topGdpCountries = buildTopGdpCountrySet(state.dynamic, config.topGdpPercentile);
+  const inTopGdpPercentile = topGdpCountries.has(cca3);
+  const gain = computeInfluenceGain(entry, inTopGdpPercentile, config);
+  const nextInfluence = applyInfluenceGain(entry, gain, config.maxInfluence);
+  return {
+    gain,
+    nextInfluence,
+    maxInfluence: config.maxInfluence,
+    reasons: {
+      base: true,
+      stability: (entry.stability ?? 0) >= config.stabilityThreshold,
+      topGdpPercentile: inTopGdpPercentile
+    }
+  };
+}
+
 // web/src/ui/dossier.js
 function relLabel(rel, tension) {
   if (rel <= -40 || tension >= 70) return "Hostile";
@@ -125,6 +173,8 @@ function renderDossier(node, state) {
   if (!node.__sortMode) node.__sortMode = "negative";
   const neighbours2 = sortNeighbours(selected, state, node.__sortMode);
   const dyn = state.dynamic[selected.cca3];
+  const influenceHint = selectNextTurnGainHint(state, selected.cca3);
+  const influenceHintText = influenceHint ? `+${influenceHint.gain} next turn (${influenceHint.reasons.base ? "base" : ""}${influenceHint.reasons.stability ? ", stability" : ""}${influenceHint.reasons.topGdpPercentile ? ", top GDP" : ""})` : "N/A";
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
@@ -133,6 +183,9 @@ function renderDossier(node, state) {
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
     <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
     <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
+    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
+    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
     <h3>Neighbours</h3>
     <div class="neighbour-head"><span>Sorted by ${node.__sortMode === "name" ? "name" : "worst relations"}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
@@ -535,6 +588,7 @@ function createInitialSimState(countryIndex2) {
       aiBias: 0.5,
       growthRate: 0.01,
       stability: 0.55,
+      influence: 0,
       militarySpendAbs,
       power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0)
     };
@@ -596,6 +650,11 @@ function simulateTurn(state) {
     nextDynamic[cca3].militaryPct = Math.max(0.2, Math.min(12, nextDynamic[cca3].militaryPct + hostilityRate * 0.08));
     nextDynamic[cca3].militarySpendAbs = nextDynamic[cca3].gdp * (nextDynamic[cca3].militaryPct / 100);
     nextDynamic[cca3].power = computePower(nextDynamic[cca3].gdp, nextDynamic[cca3].militaryPct, state.countryIndex[cca3]?.population ?? 0);
+  }
+  const topGdpCountries = buildTopGdpCountrySet(nextDynamic, TURN_INFLUENCE_CONFIG.topGdpPercentile);
+  for (const [cca3, entry] of Object.entries(nextDynamic)) {
+    const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
+    nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
   }
   return {
     ...state,
@@ -2648,6 +2707,7 @@ function getTooltipInputs(state) {
 function getDossierInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
+  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
   const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join("|") : "";
   const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join("|") : "";
   return {
@@ -2655,6 +2715,10 @@ function getDossierInputs(state) {
     dossierOpen: state.dossierOpen,
     gdp: dyn?.gdp,
     militaryPct: dyn?.militaryPct,
+    stability: dyn?.stability,
+    influence: dyn?.influence,
+    influenceGainHint: influenceHint?.gain,
+    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
     eventSlice,
     neighbourSlice
   };

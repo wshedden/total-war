@@ -1,4 +1,5 @@
 import { fmtCompact, fmtPercent } from '../util/format.js';
+import { selectNextTurnGainHint } from '../state/selectors.js';
 
 function relLabel(rel, tension) {
   if (rel <= -40 || tension >= 70) return 'Hostile';
@@ -47,6 +48,10 @@ export function renderDossier(node, state) {
   const neighbours = sortNeighbours(selected, state, node.__sortMode);
 
   const dyn = state.dynamic[selected.cca3];
+  const influenceHint = selectNextTurnGainHint(state, selected.cca3);
+  const influenceHintText = influenceHint
+    ? `+${influenceHint.gain} next turn (${influenceHint.reasons.base ? 'base' : ''}${influenceHint.reasons.stability ? ', stability' : ''}${influenceHint.reasons.topGdpPercentile ? ', top GDP' : ''})`
+    : 'N/A';
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
@@ -55,6 +60,9 @@ export function renderDossier(node, state) {
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
     <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
     <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
+    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
+    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
     <h3>Neighbours</h3>
     <div class="neighbour-head"><span>Sorted by ${node.__sortMode === 'name' ? 'name' : 'worst relations'}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
