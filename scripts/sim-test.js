@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import { paths } from '../server/src/services/cachePaths.js';
-import { createInitialSimState, createInitialRelations, simulateTurn } from '../web/src/state/store.js';
+import { createInitialSimState, createInitialRelations, createInitialRelationEffects, simulateTurn } from '../web/src/state/store.js';
 import { getEdge } from '../web/src/state/relationships.js';
 
 const raw = await fs.readFile(paths.countryIndex, 'utf8');
@@ -19,7 +19,8 @@ let state = {
   neighbours,
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
-  postureByCountry: {}
+  postureByCountry: {},
+  relationEffects: createInitialRelationEffects()
 };
 
 for (let i = 0; i < 200; i += 1) {
@@ -52,7 +53,7 @@ for (const [a, b] of state.relationEdges) {
 }
 
 const checksum = `${state.turn}:${Math.round(sumGdp)}:${sumMil.toFixed(4)}:${state.events.length}:${sumRel}:${sumTension}:${hostileEdges}`;
-const EXPECTED = '200:21452410939080:324.9961:80:-1685:16336:154';
+const EXPECTED = '200:54784074111921:147.7068:80:29398:1366:5';
 if (checksum !== EXPECTED) {
   console.error('Checksum mismatch', { checksum, EXPECTED });
   process.exit(1);

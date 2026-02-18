@@ -15,7 +15,8 @@ export function makeSnapshot(state) {
     dynamic: state.dynamic,
     events: state.events,
     postureByCountry: state.postureByCountry,
-    relationsEdges: serializeRelations(state.relationEdges, state.relations)
+    relationsEdges: serializeRelations(state.relationEdges, state.relations),
+    relationEffects: state.relationEffects
   };
 }
 

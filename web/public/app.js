@@ -333,6 +333,10 @@ function clamp(value, min, max) {
 function toSortedEdge(a, b) {
   return a < b ? [a, b] : [b, a];
 }
+function edgeKey(a, b) {
+  const [x, y] = toSortedEdge(a, b);
+  return pairKey(x, y);
+}
 function createStableEdges(neighbours2 = {}) {
   const edges = [];
   for (const a of Object.keys(neighbours2).sort()) {
@@ -369,6 +373,17 @@ function setEdge(relations, a, b, edge) {
   };
   relations[x][y] = frozen;
   relations[y][x] = frozen;
+}
+function getSymmetricEdgeValue(edgeMap, a, b) {
+  return edgeMap?.[edgeKey(a, b)] ?? null;
+}
+function setSymmetricEdgeValue(edgeMap, a, b, value) {
+  const key = edgeKey(a, b);
+  if (value == null) {
+    delete edgeMap[key];
+    return;
+  }
+  edgeMap[key] = value;
 }
 function gaussianish(rng) {
   return (rng() + rng() + rng()) / 3;
@@ -517,7 +532,8 @@ function makeSnapshot(state) {
     dynamic: state.dynamic,
     events: state.events,
     postureByCountry: state.postureByCountry,
-    relationsEdges: serializeRelations(state.relationEdges, state.relations)
+    relationsEdges: serializeRelations(state.relationEdges, state.relations),
+    relationEffects: state.relationEffects
   };
 }
 function saveToLocal(snapshot) {
@@ -558,8 +574,446 @@ function importJsonFile() {
   });
 }
 
-// web/src/state/store.js
+// web/src/state/policies.js
+var DEFAULT_INFLUENCE = 5;
+var DEFAULT_POLICY = Object.freeze({
+  milTargetPct: 0.6,
+  growthFocus: 50,
+  stabilityFocus: 50,
+  stance: "neutral"
+});
+var STANCES = /* @__PURE__ */ new Set(["conciliatory", "neutral", "hardline"]);
 function clamp2(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+function toNumber(value, fallback) {
+  const num2 = Number(value);
+  return Number.isFinite(num2) ? num2 : fallback;
+}
+function toInt(value, fallback) {
+  return Math.round(toNumber(value, fallback));
+}
+function clampInfluence(value) {
+  return clamp2(toInt(value, DEFAULT_INFLUENCE), 0, 100);
+}
+function clampPolicy(policy = {}) {
+  const milTargetPct = clamp2(toNumber(policy.milTargetPct, DEFAULT_POLICY.milTargetPct), 0.5, 10 / 12);
+  const growthFocus = clamp2(toInt(policy.growthFocus, DEFAULT_POLICY.growthFocus), 0, 100);
+  const stabilityFocus = clamp2(toInt(policy.stabilityFocus, DEFAULT_POLICY.stabilityFocus), 0, 100);
+  const stance = STANCES.has(policy.stance) ? policy.stance : DEFAULT_POLICY.stance;
+  return { milTargetPct, growthFocus, stabilityFocus, stance };
+}
+function clampActionUsage(actionState = {}) {
+  const actionUsedTurn = Number.isInteger(actionState.actionUsedTurn) ? actionState.actionUsedTurn : null;
+  const cooldowns = Object.fromEntries(
+    Object.entries(actionState.cooldowns ?? {}).map(([action, turns]) => [action, Math.max(0, toInt(turns, 0))])
+  );
+  return { actionUsedTurn, cooldowns };
+}
+function normalizeDynamicEntry(entry = {}) {
+  const actionState = clampActionUsage(entry);
+  return {
+    ...entry,
+    influence: clampInfluence(entry.influence),
+    policy: clampPolicy(entry.policy),
+    actionUsedTurn: actionState.actionUsedTurn,
+    cooldowns: actionState.cooldowns
+  };
+}
+function normalizeDynamicState(dynamic = {}, countryIndex2 = {}) {
+  return Object.keys(countryIndex2).reduce((acc2, cca3) => {
+    acc2[cca3] = normalizeDynamicEntry(dynamic[cca3]);
+    return acc2;
+  }, {});
+}
+
+// web/src/state/relationEffects.js
+var DEFAULT_STATE = Object.freeze({
+  guaranteesByEdge: {},
+  sanctionsByEdge: {},
+  tradeByEdge: {}
+});
+function cloneEdgeMap(edgeMap = {}) {
+  return { ...edgeMap };
+}
+function cloneContainer(state = {}) {
+  return {
+    guaranteesByEdge: cloneEdgeMap(state.guaranteesByEdge),
+    sanctionsByEdge: cloneEdgeMap(state.sanctionsByEdge),
+    tradeByEdge: cloneEdgeMap(state.tradeByEdge)
+  };
+}
+function createInitialRelationEffectsState() {
+  return cloneContainer(DEFAULT_STATE);
+}
+function hydrateRelationEffectsState(snapshotState = null) {
+  if (!snapshotState) return createInitialRelationEffectsState();
+  return {
+    guaranteesByEdge: cloneEdgeMap(snapshotState.guaranteesByEdge),
+    sanctionsByEdge: cloneEdgeMap(snapshotState.sanctionsByEdge),
+    tradeByEdge: cloneEdgeMap(snapshotState.tradeByEdge)
+  };
+}
+function addGuaranteeEffect(relationEffects, actor, target, expiryTurn) {
+  const list = Array.isArray(getSymmetricEdgeValue(relationEffects.guaranteesByEdge, actor, target)) ? [...getSymmetricEdgeValue(relationEffects.guaranteesByEdge, actor, target)] : [];
+  const deduped = list.filter((item) => !(item?.actor === actor && item?.target === target));
+  deduped.push({ actor, target, expiryTurn: Math.max(0, Math.round(expiryTurn ?? 0)) });
+  setSymmetricEdgeValue(relationEffects.guaranteesByEdge, actor, target, deduped);
+}
+function addSanctionEffect(relationEffects, actor, target, expiryTurn, growthPenaltyActor, growthPenaltyTarget) {
+  const list = Array.isArray(getSymmetricEdgeValue(relationEffects.sanctionsByEdge, actor, target)) ? [...getSymmetricEdgeValue(relationEffects.sanctionsByEdge, actor, target)] : [];
+  list.push({
+    actor,
+    target,
+    expiryTurn: Math.max(0, Math.round(expiryTurn ?? 0)),
+    growthPenaltyActor: growthPenaltyActor ?? 0,
+    growthPenaltyTarget: growthPenaltyTarget ?? 0
+  });
+  setSymmetricEdgeValue(relationEffects.sanctionsByEdge, actor, target, list);
+}
+function updateTradeEffect(relationEffects, a, b, update = {}) {
+  const prev = getSymmetricEdgeValue(relationEffects.tradeByEdge, a, b) ?? {};
+  const next = {
+    ...typeof update.level === "number" ? { level: Math.max(0, Math.round(update.level)) } : typeof prev.level === "number" ? { level: prev.level } : {},
+    ...typeof update.buffExpiryTurn === "number" ? { buffExpiryTurn: Math.max(0, Math.round(update.buffExpiryTurn)) } : typeof prev.buffExpiryTurn === "number" ? { buffExpiryTurn: prev.buffExpiryTurn } : {}
+  };
+  if (next.level == null && next.buffExpiryTurn == null) {
+    setSymmetricEdgeValue(relationEffects.tradeByEdge, a, b, null);
+    return;
+  }
+  setSymmetricEdgeValue(relationEffects.tradeByEdge, a, b, next);
+}
+function runRelationEffectsStage(relationEffects, turn) {
+  const next = cloneContainer(relationEffects);
+  const growthDeltaByCountry = {};
+  for (const [edge, guarantees] of Object.entries(next.guaranteesByEdge)) {
+    const active = (guarantees ?? []).filter((item) => (item?.expiryTurn ?? 0) > turn);
+    if (!active.length) delete next.guaranteesByEdge[edge];
+    else next.guaranteesByEdge[edge] = active;
+  }
+  for (const [edge, sanctions] of Object.entries(next.sanctionsByEdge)) {
+    const active = (sanctions ?? []).filter((item) => (item?.expiryTurn ?? 0) > turn);
+    if (!active.length) {
+      delete next.sanctionsByEdge[edge];
+      continue;
+    }
+    next.sanctionsByEdge[edge] = active;
+    for (const sanction of active) {
+      if (sanction.actor) {
+        growthDeltaByCountry[sanction.actor] = (growthDeltaByCountry[sanction.actor] ?? 0) + (sanction.growthPenaltyActor ?? 0);
+      }
+      if (sanction.target) {
+        growthDeltaByCountry[sanction.target] = (growthDeltaByCountry[sanction.target] ?? 0) + (sanction.growthPenaltyTarget ?? 0);
+      }
+    }
+  }
+  for (const [edge, trade] of Object.entries(next.tradeByEdge)) {
+    const level = typeof trade?.level === "number" ? trade.level : null;
+    const buffExpiryTurn = typeof trade?.buffExpiryTurn === "number" ? trade.buffExpiryTurn : null;
+    const hasActiveBuff = buffExpiryTurn != null && buffExpiryTurn > turn;
+    if (level == null && !hasActiveBuff) {
+      delete next.tradeByEdge[edge];
+      continue;
+    }
+    next.tradeByEdge[edge] = {
+      ...level == null ? {} : { level },
+      ...hasActiveBuff ? { buffExpiryTurn } : {}
+    };
+    if (!hasActiveBuff) continue;
+    const [a, b] = edge.split("|");
+    growthDeltaByCountry[a] = (growthDeltaByCountry[a] ?? 0) + 2e-3;
+    growthDeltaByCountry[b] = (growthDeltaByCountry[b] ?? 0) + 2e-3;
+  }
+  return { relationEffects: next, growthDeltaByCountry };
+}
+
+// web/src/state/diplomaticActions.js
+var MAX_INFLUENCE = 100;
+function clamp3(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function decrementCooldowns(cooldowns = {}) {
+  return Object.fromEntries(
+    Object.entries(cooldowns).map(([action, turns]) => [action, Math.max(0, (turns ?? 0) - 1)]).filter(([, turns]) => turns > 0)
+  );
+}
+function relationCheck(edge) {
+  if (!edge) return { ok: false, reason: "countries-are-not-neighbours" };
+  return { ok: true };
+}
+var ACTION_DEFINITIONS = Object.freeze({
+  improveRelations: {
+    type: "improveRelations",
+    cost: 6,
+    cooldown: 2,
+    priority: 2,
+    check(state, actor, target) {
+      const edge = getEdge(state.relations, actor, target);
+      const link2 = relationCheck(edge);
+      if (!link2.ok) return link2;
+      if (edge.rel >= 85) return { ok: false, reason: "relations-already-high" };
+      return { ok: true };
+    },
+    apply(edge) {
+      return {
+        rel: edge.rel + 10,
+        tension: edge.tension - 7,
+        trust: edge.trust + 6,
+        modifier: { rel: 1, tension: -1, trust: 1, turns: 2, text: "Goodwill outreach" }
+      };
+    },
+    score(edge) {
+      return 70 - edge.rel + edge.tension * 0.2;
+    }
+  },
+  offerTradeDeal: {
+    type: "offerTradeDeal",
+    cost: 8,
+    cooldown: 3,
+    priority: 1,
+    check(state, actor, target) {
+      const edge = getEdge(state.relations, actor, target);
+      const link2 = relationCheck(edge);
+      if (!link2.ok) return link2;
+      if (edge.rel < -20) return { ok: false, reason: "relations-too-poor-for-trade" };
+      if (edge.tension > 75) return { ok: false, reason: "tension-too-high-for-trade" };
+      return { ok: true };
+    },
+    apply(edge) {
+      return {
+        rel: edge.rel + 14,
+        tension: edge.tension - 10,
+        trust: edge.trust + 8,
+        modifier: { rel: 2, tension: -1, trust: 1, turns: 3, text: "Trade pact momentum" }
+      };
+    },
+    score(edge) {
+      return edge.rel + (100 - edge.tension) * 0.4 + edge.trust * 0.3;
+    }
+  },
+  threaten: {
+    type: "threaten",
+    cost: 7,
+    cooldown: 2,
+    priority: 3,
+    check(state, actor, target) {
+      const edge = getEdge(state.relations, actor, target);
+      const link2 = relationCheck(edge);
+      if (!link2.ok) return link2;
+      const actorPower = state.dynamic?.[actor]?.power ?? 0;
+      const targetPower = state.dynamic?.[target]?.power ?? 0;
+      if (actorPower < targetPower * 0.9) return { ok: false, reason: "insufficient-power-to-threaten" };
+      return { ok: true };
+    },
+    apply(edge) {
+      return {
+        rel: edge.rel - 12,
+        tension: edge.tension + 14,
+        trust: edge.trust - 10,
+        modifier: { rel: -1, tension: 2, trust: -1, turns: 2, text: "Threat posture" }
+      };
+    },
+    score(edge) {
+      return 50 - edge.rel + edge.tension;
+    }
+  },
+  guarantee: {
+    type: "guarantee",
+    cost: 10,
+    cooldown: 4,
+    priority: 0,
+    check(state, actor, target) {
+      const edge = getEdge(state.relations, actor, target);
+      const link2 = relationCheck(edge);
+      if (!link2.ok) return link2;
+      if (edge.rel < 20) return { ok: false, reason: "relations-too-low-to-guarantee" };
+      if (edge.trust < 35) return { ok: false, reason: "trust-too-low-to-guarantee" };
+      const existing = getSymmetricEdgeValue(state.relationEffects?.guaranteesByEdge, actor, target) ?? [];
+      if (existing.some((item) => item?.actor === actor && item?.target === target && (item?.expiryTurn ?? 0) > state.turn)) {
+        return { ok: false, reason: "guarantee-already-active" };
+      }
+      return { ok: true };
+    },
+    apply(edge) {
+      return {
+        rel: edge.rel + 8,
+        tension: edge.tension - 8,
+        trust: edge.trust + 12,
+        modifier: { rel: 1, tension: -2, trust: 2, turns: 4, text: "Security guarantee pact" }
+      };
+    },
+    score(edge) {
+      return edge.rel * 0.7 + edge.trust - edge.tension * 0.5;
+    }
+  },
+  sanction: {
+    type: "sanction",
+    cost: 9,
+    cooldown: 3,
+    priority: 4,
+    check(state, actor, target) {
+      const edge = getEdge(state.relations, actor, target);
+      const link2 = relationCheck(edge);
+      if (!link2.ok) return link2;
+      if (edge.rel > 35) return { ok: false, reason: "relations-not-bad-enough-for-sanctions" };
+      return { ok: true };
+    },
+    apply(edge) {
+      return {
+        rel: edge.rel - 15,
+        tension: edge.tension + 9,
+        trust: edge.trust - 12,
+        modifier: { rel: -2, tension: 1, trust: -1, turns: 3, text: "Sanctions regime" }
+      };
+    },
+    score(edge) {
+      return 0 - edge.rel + edge.tension * 0.6;
+    }
+  }
+});
+function checkActionPreconditions(state, action) {
+  if (!action?.actor || !action?.target || !action?.type) return { ok: false, reason: "malformed-action" };
+  if (action.actor === action.target) return { ok: false, reason: "self-targeting-not-allowed" };
+  const actorEntry = state.dynamic?.[action.actor];
+  const targetEntry = state.dynamic?.[action.target];
+  if (!actorEntry) return { ok: false, reason: "unknown-actor-country" };
+  if (!targetEntry) return { ok: false, reason: "unknown-target-country" };
+  const def = ACTION_DEFINITIONS[action.type];
+  if (!def) return { ok: false, reason: "unknown-action-type" };
+  if (actorEntry.actionUsedTurn === state.turn) return { ok: false, reason: "actor-already-used-action-this-turn" };
+  if ((actorEntry.cooldowns?.[action.type] ?? 0) > 0) return { ok: false, reason: "action-on-cooldown" };
+  if ((actorEntry.influence ?? 0) < def.cost) return { ok: false, reason: "insufficient-influence" };
+  return def.check(state, action.actor, action.target);
+}
+function stableActionSort(a, b) {
+  if (a.priority !== b.priority) return a.priority - b.priority;
+  if (a.actor !== b.actor) return a.actor.localeCompare(b.actor);
+  if (a.target !== b.target) return a.target.localeCompare(b.target);
+  return a.type.localeCompare(b.type);
+}
+function getQueuedPlayerAction(state) {
+  return state.queuedPlayerAction ?? state.playerQueuedAction ?? state.queuedAction ?? null;
+}
+function getActionCandidatesForActor(state, actor) {
+  const relationTargets = Object.keys(state.relations?.[actor] ?? {}).filter((target) => target !== actor).sort();
+  const candidates = [];
+  for (const target of relationTargets) {
+    const edge = getEdge(state.relations, actor, target);
+    if (!edge) continue;
+    for (const [type, def] of Object.entries(ACTION_DEFINITIONS)) {
+      const candidate = { actor, target, type, source: "ai", priority: def.priority };
+      const check = checkActionPreconditions(state, candidate);
+      if (!check.ok) continue;
+      candidates.push({ ...candidate, score: def.score(edge) });
+    }
+  }
+  candidates.sort((a, b) => {
+    if (a.score !== b.score) return b.score - a.score;
+    if (a.target !== b.target) return a.target.localeCompare(b.target);
+    return a.type.localeCompare(b.type);
+  });
+  return candidates;
+}
+function planActions(state) {
+  const plannedActions = [];
+  const queued = getQueuedPlayerAction(state);
+  if (queued) {
+    const def = ACTION_DEFINITIONS[queued.type];
+    plannedActions.push({
+      actor: queued.actor,
+      target: queued.target,
+      type: queued.type,
+      source: "player",
+      priority: def?.priority ?? Number.MAX_SAFE_INTEGER
+    });
+  }
+  const blockedActors = new Set(plannedActions.map((item) => item.actor));
+  const actorCodes = Object.keys(state.dynamic ?? {}).sort();
+  for (const actor of actorCodes) {
+    if (blockedActors.has(actor)) continue;
+    const candidates = getActionCandidatesForActor(state, actor);
+    if (!candidates.length) continue;
+    plannedActions.push(candidates[0]);
+  }
+  return plannedActions.map(({ score, ...action }) => action);
+}
+function applyPlannedActions(state, plannedActions = []) {
+  const nextDynamic = {};
+  const nextRelationEffects = hydrateRelationEffectsState(state.relationEffects);
+  for (const [cca3, entry] of Object.entries(state.dynamic ?? {})) {
+    nextDynamic[cca3] = {
+      ...entry,
+      cooldowns: decrementCooldowns(entry.cooldowns)
+    };
+  }
+  const nextRelations = {};
+  for (const [a, neighbours2] of Object.entries(state.relations ?? {})) {
+    if (!nextRelations[a]) nextRelations[a] = {};
+    for (const [b, edge] of Object.entries(neighbours2 ?? {})) {
+      nextRelations[a][b] = {
+        ...edge,
+        modifiers: [...edge.modifiers ?? []]
+      };
+    }
+  }
+  const actionEvents = [];
+  const sorted = [...plannedActions].sort(stableActionSort);
+  for (const action of sorted) {
+    const check = checkActionPreconditions({ ...state, dynamic: nextDynamic, relations: nextRelations }, action);
+    if (!check.ok) {
+      actionEvents.push({ turn: state.turn, cca3: action.actor, secondary: action.target, text: `Action failed (${action.type}): ${check.reason}` });
+      continue;
+    }
+    const def = ACTION_DEFINITIONS[action.type];
+    const edge = getEdge(nextRelations, action.actor, action.target);
+    const effect = def.apply(edge, action);
+    const updatedEdge = {
+      ...edge,
+      rel: clamp3(effect.rel, -100, 100),
+      tension: clamp3(effect.tension, 0, 100),
+      trust: clamp3(effect.trust, 0, 100),
+      lastTurnUpdated: state.turn,
+      modifiers: [...edge.modifiers ?? [], effect.modifier].filter((mod) => (mod?.turns ?? 0) > 0)
+    };
+    setEdge(nextRelations, action.actor, action.target, updatedEdge);
+    if (action.type === "guarantee") {
+      addGuaranteeEffect(nextRelationEffects, action.actor, action.target, state.turn + 8);
+    }
+    if (action.type === "sanction") {
+      addSanctionEffect(nextRelationEffects, action.actor, action.target, state.turn + 6, -15e-4, -6e-3);
+    }
+    if (action.type === "offerTradeDeal") {
+      const tradeState = getSymmetricEdgeValue(nextRelationEffects.tradeByEdge, action.actor, action.target) ?? {};
+      const level = Math.min(5, (tradeState.level ?? 0) + 1);
+      updateTradeEffect(nextRelationEffects, action.actor, action.target, {
+        level,
+        buffExpiryTurn: state.turn + 5
+      });
+    }
+    const actorEntry = nextDynamic[action.actor];
+    actorEntry.influence = clamp3((actorEntry.influence ?? 0) - def.cost, 0, MAX_INFLUENCE);
+    actorEntry.actionUsedTurn = state.turn;
+    actorEntry.cooldowns = {
+      ...actorEntry.cooldowns,
+      [action.type]: def.cooldown
+    };
+    actionEvents.push({
+      turn: state.turn,
+      cca3: action.actor,
+      secondary: action.target,
+      text: `${action.source === "player" ? "Player" : "AI"} ${action.type}`
+    });
+  }
+  return {
+    dynamic: nextDynamic,
+    relations: nextRelations,
+    events: actionEvents,
+    relationEffects: nextRelationEffects
+  };
+}
+
+// web/src/state/store.js
+function clamp4(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 var POLICY_MILITARY_MIN_PCT = 0.2;
@@ -571,16 +1025,16 @@ var POLICY_STABILITY_DELTA_MIN = -0.03;
 var POLICY_STABILITY_DELTA_MAX = 0.03;
 var STANCE_POLICY_EFFECTS = {
   hardline: { growth: -15e-4, stability: -2e-3, trustDelta: -1 },
-  balanced: { growth: 0, stability: 0, trustDelta: 0 },
+  neutral: { growth: 0, stability: 0, trustDelta: 0 },
   conciliatory: { growth: 15e-4, stability: 2e-3, trustDelta: 1 }
 };
 function getPolicy(entry) {
   const policy = entry.policy ?? {};
   return {
-    milTargetPct: clamp2(policy.milTargetPct ?? entry.militaryPct ?? 2.5, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
-    growthFocus: clamp2(policy.growthFocus ?? 0.5, 0, 1),
-    stabilityFocus: clamp2(policy.stabilityFocus ?? 0.5, 0, 1),
-    stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : "balanced"
+    milTargetPct: clamp4(policy.milTargetPct ?? entry.militaryPct ?? 2.5, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
+    growthFocus: clamp4(policy.growthFocus ?? 0.5, 0, 1),
+    stabilityFocus: clamp4(policy.stabilityFocus ?? 0.5, 0, 1),
+    stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : "neutral"
   };
 }
 function computePower(gdp, militaryPct, population) {
@@ -612,10 +1066,10 @@ function createInitialSimState(countryIndex2) {
       gdp,
       militaryPct,
       policy: {
-        milTargetPct: clamp2(militaryPct, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
-        growthFocus: 0.5,
-        stabilityFocus: 0.5,
-        stance: "balanced"
+        milTargetPct: clamp4(militaryPct, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
+        growthFocus: DEFAULT_POLICY.growthFocus,
+        stabilityFocus: DEFAULT_POLICY.stabilityFocus,
+        stance: DEFAULT_POLICY.stance
       },
       relations: {},
       growthMod: 0,
@@ -623,21 +1077,28 @@ function createInitialSimState(countryIndex2) {
       aiBias: 0.5,
       growthRate: 0.01,
       stability: 0.55,
-      influence: 0,
+      influence: DEFAULT_INFLUENCE,
       militarySpendAbs,
-      power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0)
+      power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0),
+      actionUsedTurn: null,
+      cooldowns: {}
     };
+    dynamic[country.cca3] = normalizeDynamicEntry(dynamic[country.cca3]);
   });
   return dynamic;
 }
 function createInitialRelations(seed, neighbours2, countryIndex2) {
   return initRelations(seed, neighbours2, countryIndex2);
 }
+function createInitialRelationEffects() {
+  return createInitialRelationEffectsState();
+}
 function simulateTurn(state) {
   const nextTurn = state.turn + 1;
   const nextDynamic = {};
   const events = [];
   const relationInputsByCountry = {};
+  const relationEffectsStage = runRelationEffectsStage(state.relationEffects, nextTurn);
   for (const [cca3, entry] of Object.entries(state.dynamic)) {
     const country = state.countryIndex[cca3];
     const rng = countryTurnRng(state.seed, nextTurn, cca3, "sim");
@@ -652,26 +1113,26 @@ function simulateTurn(state) {
       modTurns = 3 + Math.floor(rng() * 4);
       events.push({ turn: nextTurn, cca3, text: growthMod > 0 ? "Investment boom" : "Economic shock" });
     }
-    const growthPolicyMod = clamp2(
+    const growthPolicyMod = clamp4(
       (policy.growthFocus - 0.5) * 0.01 + (0.5 - policy.stabilityFocus) * 4e-3 + stanceEffects.growth,
       POLICY_GROWTH_MOD_MIN,
       POLICY_GROWTH_MOD_MAX
     );
-    const stabilityPolicyDelta = clamp2(
+    const stabilityPolicyDelta = clamp4(
       (policy.stabilityFocus - 0.5) * 0.03 - (policy.growthFocus - 0.5) * 0.012 + stanceEffects.stability,
       POLICY_STABILITY_DELTA_MIN,
       POLICY_STABILITY_DELTA_MAX
     );
-    const militaryDelta = clamp2(
+    const militaryDelta = clamp4(
       policy.milTargetPct - entry.militaryPct,
       -POLICY_MILITARY_MAX_DELTA_PER_TURN,
       POLICY_MILITARY_MAX_DELTA_PER_TURN
     );
-    const growth = 0.01 + drift + growthMod + growthPolicyMod;
+    const growth = 0.01 + drift + growthMod + growthPolicyMod + (relationEffectsStage.growthDeltaByCountry[cca3] ?? 0);
     const gdp = Math.max(1, entry.gdp * (1 + growth));
     const aiBias = entry.aiBias;
-    const militaryPct = clamp2(entry.militaryPct + militaryDelta, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT);
-    const stability = clamp2((entry.stability ?? 0.55) + stabilityPolicyDelta, 0, 1);
+    const militaryPct = clamp4(entry.militaryPct + militaryDelta, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT);
+    const stability = clamp4((entry.stability ?? 0.55) + stabilityPolicyDelta, 0, 1);
     const militarySpendAbs = gdp * (militaryPct / 100);
     const power = computePower(gdp, militaryPct, country?.population ?? 0);
     relationInputsByCountry[cca3] = {
@@ -705,7 +1166,7 @@ function simulateTurn(state) {
     const hostile = postures.filter((p) => p === "Hostile").length;
     if (!postures.length) continue;
     const hostilityRate = hostile / postures.length;
-    nextDynamic[cca3].militaryPct = clamp2(
+    nextDynamic[cca3].militaryPct = clamp4(
       nextDynamic[cca3].militaryPct + hostilityRate * 0.08,
       POLICY_MILITARY_MIN_PCT,
       POLICY_MILITARY_MAX_PCT
@@ -718,13 +1179,27 @@ function simulateTurn(state) {
     const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
     nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
   }
-  return {
+  const plannedActions = planActions({
     ...state,
     turn: nextTurn,
     dynamic: nextDynamic,
-    relations: relStep.relations,
+    relations: relStep.relations
+  });
+  const diplomaticStep = applyPlannedActions({
+    ...state,
+    turn: nextTurn,
+    dynamic: nextDynamic,
+    relations: relStep.relations
+  }, plannedActions);
+  return {
+    ...state,
+    turn: nextTurn,
+    dynamic: diplomaticStep.dynamic,
+    relations: diplomaticStep.relations,
     postureByCountry: relStep.postureByCountry,
-    events: [...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
+    relationEffects: diplomaticStep.relationEffects ?? relationEffectsStage.relationEffects,
+    queuedPlayerAction: null,
+    events: [...diplomaticStep.events, ...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
   };
 }
 
@@ -772,7 +1247,8 @@ function createActions(store2) {
           dynamic: createInitialSimState(s.countryIndex),
           relations,
           relationEdges: edges,
-          postureByCountry: {}
+          postureByCountry: {},
+          relationEffects: createInitialRelationEffects()
         };
       });
     },
@@ -782,9 +1258,11 @@ function createActions(store2) {
         return {
           ...s,
           ...snapshot,
+          dynamic: normalizeDynamicState(snapshot.dynamic, s.countryIndex),
           relations: hydrated.relations,
           relationEdges: hydrated.edges,
-          postureByCountry: snapshot.postureByCountry ?? {}
+          postureByCountry: snapshot.postureByCountry ?? {},
+          relationEffects: hydrateRelationEffectsState(snapshot.relationEffects)
         };
       });
     }
@@ -2721,7 +3199,8 @@ var store = createStore({
   dynamic: createInitialSimState(countryIndex),
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
-  postureByCountry: {}
+  postureByCountry: {},
+  relationEffects: createInitialRelationEffects()
 });
 var actions = createActions(store);
 var controls = renderTopbar(ui.topbar, actions);

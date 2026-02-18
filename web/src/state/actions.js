@@ -1,6 +1,7 @@
-import { simulateTurn, createInitialRelations, createInitialSimState } from './store.js';
+import { simulateTurn, createInitialRelations, createInitialSimState, createInitialRelationEffects } from './store.js';
 import { hydrateRelations } from './relationships.js';
 import { normalizeDynamicState } from './policies.js';
+import { hydrateRelationEffectsState } from './relationEffects.js';
 
 export function createActions(store) {
   return {
@@ -45,7 +46,8 @@ export function createActions(store) {
           dynamic: createInitialSimState(s.countryIndex),
           relations,
           relationEdges: edges,
-          postureByCountry: {}
+          postureByCountry: {},
+          relationEffects: createInitialRelationEffects()
         };
       });
     },
@@ -58,7 +60,8 @@ export function createActions(store) {
           dynamic: normalizeDynamicState(snapshot.dynamic, s.countryIndex),
           relations: hydrated.relations,
           relationEdges: hydrated.edges,
-          postureByCountry: snapshot.postureByCountry ?? {}
+          postureByCountry: snapshot.postureByCountry ?? {},
+          relationEffects: hydrateRelationEffectsState(snapshot.relationEffects)
         };
       });
     }
