@@ -8,5 +8,5 @@ export const el = (tag, className, text) => {
 export function isTypingTarget(target = document.activeElement) {
   if (!target) return false;
   const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }

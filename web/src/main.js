@@ -16,6 +16,8 @@ import { pickCountry } from './map/picking.js';
 import { createFpsCounter } from './util/perf.js';
 import { isTypingTarget } from './util/dom.js';
 import { getNeighbours } from './state/relationships.js';
+import { createHistoryStore, recordHistoryTurn } from './sim/historyStore.js';
+import { createChartsWindow } from './ui/chartsWindow.js';
 
 const root = document.getElementById('app');
 
@@ -46,6 +48,8 @@ const initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 
 root.innerHTML = '';
 const ui = buildLayout(root);
+const initialHistory = createHistoryStore(Object.keys(countryIndex));
+
 const store = createStore({
   seed: 1337,
   turn: 0,
@@ -66,10 +70,16 @@ const store = createStore({
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
   postureByCountry: {},
-  relationEffects: createInitialRelationEffects()
+  relationEffects: createInitialRelationEffects(),
+  chartsWindow: { open: false, x: 140, y: 90, w: 780, h: 470, zIndex: 28 },
+  chartControls: { mode: 'selected', metric: 'gdp', range: '200', smoothing: 'none' },
+  chartPinned: [],
+  history: initialHistory
 });
+recordHistoryTurn(initialHistory, store.getState());
 const actions = createActions(store);
 const controls = renderTopbar(ui.topbar, actions);
+const chartsWindow = createChartsWindow(ui.mapWrap, store, actions);
 wireSearch(controls.search, fullCountries, actions);
 
 controls.save.onclick = () => saveToLocal(makeSnapshot(store.getState()));
@@ -78,6 +88,7 @@ controls.exportBtn.onclick = () => exportJson(makeSnapshot(store.getState()));
 controls.importBtn.onclick = async () => { const s = await importJsonFile(); if (s) actions.loadState(s); };
 controls.newGame.onclick = () => actions.newGame((Math.random() * 1e9) | 0);
 controls.help.onclick = () => showHelp();
+controls.charts.onclick = () => actions.toggleChartsWindow();
 
 const renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
@@ -237,12 +248,19 @@ ui.canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeHelp();
+  if (e.key === 'Escape') {
+    closeHelp();
+    if (store.getState().chartsWindow.open) actions.setChartsWindow({ open: false });
+  }
   if (isTypingTarget()) return;
   if (e.code === 'Space') { e.preventDefault(); actions.togglePause(); }
   if (e.key === 'ArrowRight') actions.stepTurn();
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); controls.search.focus(); }
   if (e.key.toLowerCase() === 'd') actions.toggleDebug();
+  if (e.key.toLowerCase() === 'g') {
+    e.preventDefault();
+    actions.toggleChartsWindow();
+  }
 });
 
 let acc = 0;
@@ -318,6 +336,8 @@ function drawNow() {
     prevLegendInputs = legendInputs;
   }
 
+  chartsWindow.render(state);
+
   const debugState = { ...state, debugInfo };
   const debugInputs = getDebugInputs(debugState);
   if (!shallowEqual(prevDebugInputs, debugInputs)) {
@@ -343,7 +363,7 @@ function showHelp() {
   const modal = document.createElement('div');
   modal.className = 'modal';
   modal.id = 'helpModal';
-  modal.innerHTML = '<div class="modal-card"><h2>Help</h2><p>Space pause/unpause · Right Arrow step · Ctrl+F focus search · D debug overlay.</p><button id="closeHelp">Close</button></div>';
+  modal.innerHTML = '<div class="modal-card"><h2>Help</h2><p>Space pause/unpause · Right Arrow step · Ctrl+F focus search · D debug overlay · G charts.</p><button id="closeHelp">Close</button></div>';
   document.body.append(modal);
   modal.querySelector('#closeHelp').onclick = () => modal.remove();
 }
