@@ -2,6 +2,7 @@ import { feature } from 'topojson-client';
 import { createProjection } from './projection.js';
 import { heatmapColour, stableCountryColour } from './styles.js';
 import { rebuildPickCache } from './picking.js';
+import { applyCameraTransform } from './camera.js';
 import { selectActiveMetricRange, selectActiveMetricValue } from '../state/metricRange.js';
 
 export function createRenderer(canvas, topo, getState) {
@@ -12,8 +13,7 @@ export function createRenderer(canvas, topo, getState) {
   let height = 1;
   let pickCache = [];
   let pickByCca3 = {};
-  let path = null;
-  let cameraKey = '';
+  let geometryKey = '';
   let spherePath2d = null;
 
   function resize() {
@@ -24,25 +24,32 @@ export function createRenderer(canvas, topo, getState) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  function ensureGeometryCache() {
+    const nextGeometryKey = `${width}:${height}:naturalEarth1`;
+    if (nextGeometryKey === geometryKey && pickCache.length && spherePath2d) return;
+
+    const { path } = createProjection(width, height);
+    pickCache = rebuildPickCache(world.features, path);
+    pickByCca3 = {};
+    for (const entry of pickCache) {
+      pickByCca3[entry.feature.properties.cca3] = entry;
+    }
+    spherePath2d = new Path2D(path({ type: 'Sphere' }));
+    geometryKey = nextGeometryKey;
+  }
+
   function draw(alpha = 1) {
     const state = getState();
-    const nextCameraKey = `${width}:${height}:${state.camera.x.toFixed(2)}:${state.camera.y.toFixed(2)}:${state.camera.zoom.toFixed(4)}`;
-    if (nextCameraKey !== cameraKey || !path) {
-      ({ path } = createProjection(width, height, state.camera));
-      pickCache = rebuildPickCache(world.features, path);
-      pickByCca3 = {};
-      for (const entry of pickCache) {
-        pickByCca3[entry.feature.properties.cca3] = entry;
-      }
-      spherePath2d = new Path2D(path({ type: 'Sphere' }));
-      cameraKey = nextCameraKey;
-    }
+    ensureGeometryCache();
 
     const { min: metricMin, max: metricMax } = selectActiveMetricRange(state);
 
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
+
+    ctx.save();
+    applyCameraTransform(ctx, state.camera, width, height);
 
     if (spherePath2d) {
       ctx.fillStyle = '#0d1828';
@@ -60,7 +67,7 @@ export function createRenderer(canvas, topo, getState) {
       ctx.fillStyle = fill;
       ctx.fill(path2d);
       ctx.strokeStyle = '#1a2a3f';
-      ctx.lineWidth = 0.75;
+      ctx.lineWidth = 0.75 / state.camera.zoom;
       ctx.stroke(path2d);
     }
 
@@ -69,21 +76,31 @@ export function createRenderer(canvas, topo, getState) {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = 'rgba(166, 202, 244, 0.55)';
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.4 / state.camera.zoom;
       ctx.stroke(spherePath2d);
       ctx.restore();
     }
 
     const hover = pickByCca3[state.hovered];
     if (hover) {
-      ctx.save(); ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.2; ctx.stroke(hover.path2d); ctx.restore();
+      ctx.save();
+      ctx.setLineDash([4 / state.camera.zoom, 4 / state.camera.zoom]);
+      ctx.strokeStyle = 'rgba(255,255,255,.8)';
+      ctx.lineWidth = 1.2 / state.camera.zoom;
+      ctx.stroke(hover.path2d);
+      ctx.restore();
     }
     const selected = pickByCca3[state.selected];
     if (selected) {
-      ctx.save(); ctx.setLineDash([6, 4]);
-      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke(selected.path2d); ctx.restore();
+      ctx.save();
+      ctx.setLineDash([6 / state.camera.zoom, 4 / state.camera.zoom]);
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 2 / state.camera.zoom;
+      ctx.stroke(selected.path2d);
+      ctx.restore();
     }
+
+    ctx.restore();
   }
 
   return { ctx, world, resize, draw, getPickCache: () => pickCache };

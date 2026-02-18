@@ -82,12 +82,12 @@ window.addEventListener('mousemove', (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 4);
   debugInfo.candidates = hit.candidates;
   actions.setHover(hit.cca3);
 });
 ui.canvas.addEventListener('click', (e) => {
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 6);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);

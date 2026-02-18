@@ -1964,6 +1964,17 @@ function zoomAtPoint(camera, factor, px, py, width, height) {
   };
   return constrainCamera(next, width, height);
 }
+function applyCameraTransform(ctx, camera, width, height) {
+  ctx.translate(width / 2 + camera.x, height / 2 + camera.y);
+  ctx.scale(camera.zoom, camera.zoom);
+  ctx.translate(-width / 2, -height / 2);
+}
+function screenToWorld(camera, x, y, width, height) {
+  return {
+    x: width / 2 + (x - (width / 2 + camera.x)) / camera.zoom,
+    y: height / 2 + (y - (height / 2 + camera.y)) / camera.zoom
+  };
+}
 function fitCameraToFeature(feature2, width, height) {
   const padding = Math.min(width, height) * 0.16;
   const baseProjection = projectionForCamera(width, height, { x: 0, y: 0, zoom: 1 });
@@ -1983,8 +1994,8 @@ function fitCameraToFeature(feature2, width, height) {
 }
 
 // web/src/map/projection.js
-function createProjection(width, height, camera) {
-  const projection2 = naturalEarth1_default().translate([width / 2 + camera.x, height / 2 + camera.y]).scale(camera.zoom * Math.min(width, height) * BASE_MAP_SCALE);
+function createProjection(width, height) {
+  const projection2 = naturalEarth1_default().translate([width / 2, height / 2]).scale(Math.min(width, height) * BASE_MAP_SCALE);
   const path = path_default(projection2);
   return { projection: projection2, path };
 }
@@ -2008,13 +2019,15 @@ function rebuildPickCache(features, path) {
     return { feature: feature2, path2d: p, bbox: b };
   });
 }
-function pickCountry(ctx, pickCache, x, y, tolerance = 3) {
+function pickCountry(ctx, pickCache, camera, width, height, x, y, tolerance = 3) {
+  const worldPoint = screenToWorld(camera, x, y, width, height);
+  const worldTolerance = tolerance / camera.zoom;
   const candidates = pickCache.filter((entry) => {
     const [[x05, y05], [x12, y12]] = entry.bbox;
-    return x >= x05 - tolerance && x <= x12 + tolerance && y >= y05 - tolerance && y <= y12 + tolerance;
+    return worldPoint.x >= x05 - worldTolerance && worldPoint.x <= x12 + worldTolerance && worldPoint.y >= y05 - worldTolerance && worldPoint.y <= y12 + worldTolerance;
   });
   for (let i = candidates.length - 1; i >= 0; i -= 1) {
-    if (ctx.isPointInPath(candidates[i].path2d, x, y)) {
+    if (ctx.isPointInPath(candidates[i].path2d, worldPoint.x, worldPoint.y)) {
       return { cca3: candidates[i].feature.properties.cca3, candidates: candidates.length };
     }
   }
@@ -2030,8 +2043,7 @@ function createRenderer(canvas, topo2, getState) {
   let height = 1;
   let pickCache = [];
   let pickByCca3 = {};
-  let path = null;
-  let cameraKey = "";
+  let geometryKey = "";
   let spherePath2d = null;
   function resize() {
     width = canvas.clientWidth;
@@ -2040,23 +2052,27 @@ function createRenderer(canvas, topo2, getState) {
     canvas.height = Math.floor(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
+  function ensureGeometryCache() {
+    const nextGeometryKey = `${width}:${height}:naturalEarth1`;
+    if (nextGeometryKey === geometryKey && pickCache.length && spherePath2d) return;
+    const { path } = createProjection(width, height);
+    pickCache = rebuildPickCache(world.features, path);
+    pickByCca3 = {};
+    for (const entry of pickCache) {
+      pickByCca3[entry.feature.properties.cca3] = entry;
+    }
+    spherePath2d = new Path2D(path({ type: "Sphere" }));
+    geometryKey = nextGeometryKey;
+  }
   function draw(alpha = 1) {
     const state = getState();
-    const nextCameraKey = `${width}:${height}:${state.camera.x.toFixed(2)}:${state.camera.y.toFixed(2)}:${state.camera.zoom.toFixed(4)}`;
-    if (nextCameraKey !== cameraKey || !path) {
-      ({ path } = createProjection(width, height, state.camera));
-      pickCache = rebuildPickCache(world.features, path);
-      pickByCca3 = {};
-      for (const entry of pickCache) {
-        pickByCca3[entry.feature.properties.cca3] = entry;
-      }
-      spherePath2d = new Path2D(path({ type: "Sphere" }));
-      cameraKey = nextCameraKey;
-    }
+    ensureGeometryCache();
     const { min: metricMin, max: metricMax } = selectActiveMetricRange(state);
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
+    ctx.save();
+    applyCameraTransform(ctx, state.camera, width, height);
     if (spherePath2d) {
       ctx.fillStyle = "#0d1828";
       ctx.globalAlpha = 0.3;
@@ -2072,7 +2088,7 @@ function createRenderer(canvas, topo2, getState) {
       ctx.fillStyle = fill;
       ctx.fill(path2d);
       ctx.strokeStyle = "#1a2a3f";
-      ctx.lineWidth = 0.75;
+      ctx.lineWidth = 0.75 / state.camera.zoom;
       ctx.stroke(path2d);
     }
     if (spherePath2d) {
@@ -2080,28 +2096,29 @@ function createRenderer(canvas, topo2, getState) {
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = "rgba(166, 202, 244, 0.55)";
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.4 / state.camera.zoom;
       ctx.stroke(spherePath2d);
       ctx.restore();
     }
     const hover = pickByCca3[state.hovered];
     if (hover) {
       ctx.save();
-      ctx.setLineDash([4, 4]);
+      ctx.setLineDash([4 / state.camera.zoom, 4 / state.camera.zoom]);
       ctx.strokeStyle = "rgba(255,255,255,.8)";
-      ctx.lineWidth = 1.2;
+      ctx.lineWidth = 1.2 / state.camera.zoom;
       ctx.stroke(hover.path2d);
       ctx.restore();
     }
     const selected = pickByCca3[state.selected];
     if (selected) {
       ctx.save();
-      ctx.setLineDash([6, 4]);
+      ctx.setLineDash([6 / state.camera.zoom, 4 / state.camera.zoom]);
       ctx.strokeStyle = "#ffd166";
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2 / state.camera.zoom;
       ctx.stroke(selected.path2d);
       ctx.restore();
     }
+    ctx.restore();
   }
   return { ctx, world, resize, draw, getPickCache: () => pickCache };
 }
@@ -2200,12 +2217,12 @@ window.addEventListener("mousemove", (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 4);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 4);
   debugInfo.candidates = hit.candidates;
   actions.setHover(hit.cca3);
 });
 ui.canvas.addEventListener("click", (e) => {
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), e.offsetX, e.offsetY, 6);
+  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
   if (!hit.cca3) return;
   actions.selectCountry(hit.cca3);
   const entry = renderer.getPickCache().find((x) => x.feature.properties.cca3 === hit.cca3);
