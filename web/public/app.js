@@ -853,6 +853,7 @@ function renderDossier(node, state, actions2) {
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
+    <div class="metric"><span>Turn</span><strong data-dossier-turn>${state.turn}</strong></div>
     <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
     <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
@@ -904,7 +905,7 @@ function renderDossier(node, state, actions2) {
         ${NEIGHBOUR_SORT_MODES.map((mode) => `<option value="${mode.value}" ${node.__sortMode === mode.value ? "selected" : ""}>${mode.label}</option>`).join("")}
       </select>
     </div>
-    <div class="neighbours">${neighbours2.map((n) => `
+    <div class="neighbours" data-dossier-neighbours>${neighbours2.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
         ${relBar(n.rel)}
@@ -914,7 +915,7 @@ function renderDossier(node, state, actions2) {
       </div>
     `).join("") || '<div class="events">No land neighbours in this dataset.</div>'}</div>
     <h3>Recent events</h3>
-    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>"}</div>
+    <div class="events" data-dossier-events>${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>"}</div>
   `;
   if (node.__lastMarkup !== markup) {
     node.innerHTML = markup;
@@ -954,6 +955,31 @@ function renderDossier(node, state, actions2) {
     });
   }
   node.classList.toggle("open", state.dossierOpen);
+}
+function updateDossierLiveTelemetry(node, state) {
+  const selectedCode = state.selected;
+  if (!selectedCode || !node.querySelector("[data-dossier-events]")) return;
+  const turnValue = node.querySelector("[data-dossier-turn]");
+  if (turnValue) turnValue.textContent = String(state.turn);
+  const selected = state.countryIndex[selectedCode];
+  if (!selected) return;
+  const neighboursNode = node.querySelector("[data-dossier-neighbours]");
+  if (neighboursNode) {
+    const neighbours2 = sortNeighbours(selected, state, node.__sortMode || "worst-relationship");
+    neighboursNode.innerHTML = neighbours2.map((n) => `
+      <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
+        <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
+        ${relBar(n.rel)}
+        ${tensionBar(n.tension)}
+        ${trustBar(n.trust)}
+        <div class="neighbour-meta"><span>Posture: ${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Trust ${n.trust}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+      </div>
+    `).join("") || '<div class="events">No land neighbours in this dataset.</div>';
+  }
+  const eventsNode = node.querySelector("[data-dossier-events]");
+  if (eventsNode) {
+    eventsNode.innerHTML = state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} \u2194 ${e.secondary})` : ""}</div>`).join("") || "<div>None.</div>";
+  }
 }
 
 // web/src/ui/tooltip.js
@@ -1200,8 +1226,8 @@ function getPolicy(entry) {
   const policy = entry.policy ?? {};
   return {
     milTargetPct: clamp4(policy.milTargetPct ?? entry.militaryPct ?? 2.5, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
-    growthFocus: clamp4(policy.growthFocus ?? 0.5, 0, 1),
-    stabilityFocus: clamp4(policy.stabilityFocus ?? 0.5, 0, 1),
+    growthFocus: clamp4(policy.growthFocus ?? 50, 0, 100),
+    stabilityFocus: clamp4(policy.stabilityFocus ?? 50, 0, 100),
     stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : "neutral"
   };
 }
@@ -1263,107 +1289,140 @@ function createInitialRelationEffects() {
 }
 function simulateTurn(state) {
   const nextTurn = state.turn + 1;
+  const countryCodes = Object.keys(state.dynamic).sort((a, b) => a.localeCompare(b));
+  const sortedRelationEdges = [...state.relationEdges ?? []].sort((left, right) => {
+    const [a1, b1] = left;
+    const [a2, b2] = right;
+    return pairKey(a1, b1).localeCompare(pairKey(a2, b2));
+  });
   const nextDynamic = {};
   const events = [];
   const relationInputsByCountry = {};
+  const economyInputsByCountry = {};
   const relationEffectsStage = runRelationEffectsStage(state.relationEffects, nextTurn);
-  for (const [cca3, entry] of Object.entries(state.dynamic)) {
-    const country = state.countryIndex[cca3];
-    const rng = countryTurnRng(state.seed, nextTurn, cca3, "sim");
-    const drift = (rng() - 0.5) * 0.012;
-    const eventRoll = rng();
-    let growthMod = entry.modTurns > 0 ? entry.growthMod : 0;
-    let modTurns = Math.max(0, entry.modTurns - 1);
+  for (const cca3 of countryCodes) {
+    const entry = state.dynamic[cca3];
     const policy = getPolicy(entry);
     const stanceEffects = STANCE_POLICY_EFFECTS[policy.stance];
-    if (eventRoll < 0.012) {
-      growthMod = rng() < 0.5 ? -0.018 : 0.02;
-      modTurns = 3 + Math.floor(rng() * 4);
-      events.push({ turn: nextTurn, cca3, text: growthMod > 0 ? "Investment boom" : "Economic shock" });
-    }
-    const growthPolicyMod = clamp4(
-      (policy.growthFocus - 0.5) * 0.01 + (0.5 - policy.stabilityFocus) * 4e-3 + stanceEffects.growth,
-      POLICY_GROWTH_MOD_MIN,
-      POLICY_GROWTH_MOD_MAX
-    );
-    const stabilityPolicyDelta = clamp4(
-      (policy.stabilityFocus - 0.5) * 0.03 - (policy.growthFocus - 0.5) * 0.012 + stanceEffects.stability,
-      POLICY_STABILITY_DELTA_MIN,
-      POLICY_STABILITY_DELTA_MAX
-    );
     const militaryDelta = clamp4(
       policy.milTargetPct - entry.militaryPct,
       -POLICY_MILITARY_MAX_DELTA_PER_TURN,
       POLICY_MILITARY_MAX_DELTA_PER_TURN
     );
-    const growth = 0.01 + drift + growthMod + growthPolicyMod + (relationEffectsStage.growthDeltaByCountry[cca3] ?? 0);
-    const gdp = Math.max(1, entry.gdp * (1 + growth));
-    const aiBias = entry.aiBias;
     const militaryPct = clamp4(entry.militaryPct + militaryDelta, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT);
-    const stability = clamp4((entry.stability ?? 0.55) + stabilityPolicyDelta, 0, 1);
-    const militarySpendAbs = gdp * (militaryPct / 100);
-    const power = computePower(gdp, militaryPct, country?.population ?? 0);
+    const growthFocusNorm = policy.growthFocus / 100;
+    const stabilityFocusNorm = policy.stabilityFocus / 100;
+    const stabilityPolicyDelta = clamp4(
+      (stabilityFocusNorm - 0.5) * 0.03 - (growthFocusNorm - 0.5) * 0.012 + stanceEffects.stability,
+      POLICY_STABILITY_DELTA_MIN,
+      POLICY_STABILITY_DELTA_MAX
+    );
+    nextDynamic[cca3] = {
+      ...entry,
+      policy,
+      militaryPct,
+      stability: clamp4((entry.stability ?? 0.55) + stabilityPolicyDelta, 0, 1)
+    };
+  }
+  for (const cca3 of countryCodes) {
+    const entry = nextDynamic[cca3];
+    const country = state.countryIndex[cca3];
+    entry.militarySpendAbs = entry.gdp * (entry.militaryPct / 100);
+    entry.power = computePower(entry.gdp, entry.militaryPct, country?.population ?? 0);
+  }
+  for (const cca3 of countryCodes) {
+    const entry = nextDynamic[cca3];
+    const rng = countryTurnRng(state.seed, nextTurn, cca3, "sim");
+    const stanceEffects = STANCE_POLICY_EFFECTS[entry.policy.stance];
+    const drift = (rng() - 0.5) * 0.012;
+    const eventRoll = rng();
+    let growthMod = entry.modTurns > 0 ? entry.growthMod : 0;
+    let modTurns = Math.max(0, entry.modTurns - 1);
+    if (eventRoll < 0.012) {
+      growthMod = rng() < 0.5 ? -0.018 : 0.02;
+      modTurns = 3 + Math.floor(rng() * 4);
+      events.push({ turn: nextTurn, cca3, text: growthMod > 0 ? "Investment boom" : "Economic shock" });
+    }
+    const growthFocusNorm = entry.policy.growthFocus / 100;
+    const stabilityFocusNorm = entry.policy.stabilityFocus / 100;
+    const growthPolicyMod = clamp4(
+      (growthFocusNorm - 0.5) * 0.01 + (0.5 - stabilityFocusNorm) * 4e-3 + stanceEffects.growth,
+      POLICY_GROWTH_MOD_MIN,
+      POLICY_GROWTH_MOD_MAX
+    );
     relationInputsByCountry[cca3] = {
       trustDelta: stanceEffects.trustDelta
     };
-    nextDynamic[cca3] = {
-      ...entry,
-      gdp,
-      militaryPct,
-      aiBias,
+    economyInputsByCountry[cca3] = {
+      drift,
       growthMod,
       modTurns,
-      policy,
-      growthRate: growth,
-      stability,
-      militarySpendAbs,
-      power
+      growthPolicyMod
     };
-  }
-  const relStep = stepRelations({
-    turn: nextTurn,
-    seed: state.seed,
-    relations: state.relations,
-    edges: state.relationEdges,
-    dynamic: nextDynamic,
-    relationInputsByCountry,
-    events
-  });
-  for (const cca3 of Object.keys(nextDynamic)) {
-    const postures = Object.values(relStep.postureByCountry[cca3] ?? {});
-    const hostile = postures.filter((p) => p === "Hostile").length;
-    if (!postures.length) continue;
-    const hostilityRate = hostile / postures.length;
-    nextDynamic[cca3].militaryPct = clamp4(
-      nextDynamic[cca3].militaryPct + hostilityRate * 0.08,
-      POLICY_MILITARY_MIN_PCT,
-      POLICY_MILITARY_MAX_PCT
-    );
-    nextDynamic[cca3].militarySpendAbs = nextDynamic[cca3].gdp * (nextDynamic[cca3].militaryPct / 100);
-    nextDynamic[cca3].power = computePower(nextDynamic[cca3].gdp, nextDynamic[cca3].militaryPct, state.countryIndex[cca3]?.population ?? 0);
-  }
-  const topGdpCountries = buildTopGdpCountrySet(nextDynamic, TURN_INFLUENCE_CONFIG.topGdpPercentile);
-  for (const [cca3, entry] of Object.entries(nextDynamic)) {
-    const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
-    nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
+    entry.growthMod = growthMod;
+    entry.modTurns = modTurns;
   }
   const plannedActions = planActions({
     ...state,
     turn: nextTurn,
     dynamic: nextDynamic,
-    relations: relStep.relations
+    relations: state.relations,
+    relationEdges: sortedRelationEdges
   });
   const diplomaticStep = applyPlannedActions({
     ...state,
     turn: nextTurn,
     dynamic: nextDynamic,
-    relations: relStep.relations
+    relations: state.relations,
+    relationEdges: sortedRelationEdges
   }, plannedActions);
+  const relStep = stepRelations({
+    turn: nextTurn,
+    seed: state.seed,
+    relations: diplomaticStep.relations,
+    edges: sortedRelationEdges,
+    dynamic: diplomaticStep.dynamic,
+    relationInputsByCountry,
+    events
+  });
+  for (const cca3 of countryCodes) {
+    const postures = Object.entries(relStep.postureByCountry[cca3] ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([, posture]) => posture);
+    const hostile = postures.filter((p) => p === "Hostile").length;
+    if (!postures.length) continue;
+    const hostilityRate = hostile / postures.length;
+    diplomaticStep.dynamic[cca3].militaryPct = clamp4(
+      diplomaticStep.dynamic[cca3].militaryPct + hostilityRate * 0.08,
+      POLICY_MILITARY_MIN_PCT,
+      POLICY_MILITARY_MAX_PCT
+    );
+    diplomaticStep.dynamic[cca3].militarySpendAbs = diplomaticStep.dynamic[cca3].gdp * (diplomaticStep.dynamic[cca3].militaryPct / 100);
+    diplomaticStep.dynamic[cca3].power = computePower(
+      diplomaticStep.dynamic[cca3].gdp,
+      diplomaticStep.dynamic[cca3].militaryPct,
+      state.countryIndex[cca3]?.population ?? 0
+    );
+  }
+  for (const cca3 of countryCodes) {
+    const entry = diplomaticStep.dynamic[cca3];
+    const economy = economyInputsByCountry[cca3];
+    const growth = 0.01 + economy.drift + economy.growthMod + economy.growthPolicyMod + (relationEffectsStage.growthDeltaByCountry[cca3] ?? 0);
+    const gdp = Math.max(1, entry.gdp * (1 + growth));
+    entry.gdp = gdp;
+    entry.growthRate = growth;
+    entry.militarySpendAbs = gdp * (entry.militaryPct / 100);
+    entry.power = computePower(gdp, entry.militaryPct, state.countryIndex[cca3]?.population ?? 0);
+  }
+  const topGdpCountries = buildTopGdpCountrySet(diplomaticStep.dynamic, TURN_INFLUENCE_CONFIG.topGdpPercentile);
+  for (const cca3 of countryCodes) {
+    const entry = diplomaticStep.dynamic[cca3];
+    const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
+    entry.influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
+  }
   return {
     ...state,
     turn: nextTurn,
     dynamic: diplomaticStep.dynamic,
-    relations: diplomaticStep.relations,
+    relations: relStep.relations,
     postureByCountry: relStep.postureByCountry,
     relationEffects: diplomaticStep.relationEffects ?? relationEffectsStage.relationEffects,
     queuedPlayerAction: null,
@@ -3584,7 +3643,8 @@ var hoverPickQueued = false;
 var debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 var fpsCounter = createFpsCounter();
 var prevTooltipInputs = null;
-var prevDossierInputs = null;
+var prevDossierStructuralInputs = null;
+var prevDossierTelemetryInputs = null;
 var prevLegendInputs = null;
 var prevDebugInputs = null;
 function getTooltipInputs(state) {
@@ -3602,12 +3662,10 @@ function getTooltipInputs(state) {
     population: country?.population
   };
 }
-function getDossierInputs(state) {
+function getDossierStructuralInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
   const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
-  const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join("|") : "";
-  const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join("|") : "";
   const policy = dyn?.policy;
   const selectedCooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : "";
   const queuedAction = state.queuedPlayerAction ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}` : "";
@@ -3627,6 +3685,16 @@ function getDossierInputs(state) {
     actionUsedTurn: dyn?.actionUsedTurn,
     cooldowns: selectedCooldowns,
     queuedAction,
+    diplomacyTarget: ui.dossier.__diplomacyTarget ?? "",
+    sortMode: ui.dossier.__sortMode ?? "worst-relationship"
+  };
+}
+function getDossierTelemetryInputs(state) {
+  const selected = state.selected;
+  const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected || e.secondary === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}:${e.secondary ?? ""}`).join("|") : "";
+  const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}/${state.relations?.[selected]?.[n]?.trust ?? 50}`).join("|") : "";
+  return {
+    selected,
     turn: state.turn,
     eventSlice,
     neighbourSlice
@@ -3756,10 +3824,17 @@ function drawNow() {
     renderTooltip(ui.tooltip, state, mouse.x, mouse.y);
     prevTooltipInputs = tooltipInputs;
   }
-  const dossierInputs = getDossierInputs(state);
-  if (!shallowEqual(prevDossierInputs, dossierInputs)) {
+  const dossierStructuralInputs = getDossierStructuralInputs(state);
+  if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
     renderDossier(ui.dossier, state, actions);
-    prevDossierInputs = dossierInputs;
+    prevDossierStructuralInputs = dossierStructuralInputs;
+    prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
+  } else {
+    const dossierTelemetryInputs = getDossierTelemetryInputs(state);
+    if (!shallowEqual(prevDossierTelemetryInputs, dossierTelemetryInputs)) {
+      updateDossierLiveTelemetry(ui.dossier, state);
+      prevDossierTelemetryInputs = dossierTelemetryInputs;
+    }
   }
   const legendInputs = getLegendInputs(state);
   if (!shallowEqual(prevLegendInputs, legendInputs)) {

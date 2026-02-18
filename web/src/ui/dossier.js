@@ -133,6 +133,7 @@ export function renderDossier(node, state, actions) {
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
+    <div class="metric"><span>Turn</span><strong data-dossier-turn>${state.turn}</strong></div>
     <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
     <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
@@ -184,7 +185,7 @@ export function renderDossier(node, state, actions) {
         ${NEIGHBOUR_SORT_MODES.map((mode) => `<option value="${mode.value}" ${node.__sortMode === mode.value ? 'selected' : ''}>${mode.label}</option>`).join('')}
       </select>
     </div>
-    <div class="neighbours">${neighbours.map((n) => `
+    <div class="neighbours" data-dossier-neighbours>${neighbours.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
         ${relBar(n.rel)}
@@ -194,7 +195,7 @@ export function renderDossier(node, state, actions) {
       </div>
     `).join('') || '<div class="events">No land neighbours in this dataset.</div>'}</div>
     <h3>Recent events</h3>
-    <div class="events">${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} ↔ ${e.secondary})` : ''}</div>`).join('') || '<div>None.</div>'}</div>
+    <div class="events" data-dossier-events>${state.events.filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3).slice(0, 8).map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} ↔ ${e.secondary})` : ''}</div>`).join('') || '<div>None.</div>'}</div>
   `;
 
   if (node.__lastMarkup !== markup) {
@@ -241,4 +242,38 @@ export function renderDossier(node, state, actions) {
   }
 
   node.classList.toggle('open', state.dossierOpen);
+}
+
+export function updateDossierLiveTelemetry(node, state) {
+  const selectedCode = state.selected;
+  if (!selectedCode || !node.querySelector('[data-dossier-events]')) return;
+
+  const turnValue = node.querySelector('[data-dossier-turn]');
+  if (turnValue) turnValue.textContent = String(state.turn);
+
+  const selected = state.countryIndex[selectedCode];
+  if (!selected) return;
+
+  const neighboursNode = node.querySelector('[data-dossier-neighbours]');
+  if (neighboursNode) {
+    const neighbours = sortNeighbours(selected, state, node.__sortMode || 'worst-relationship');
+    neighboursNode.innerHTML = neighbours.map((n) => `
+      <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
+        <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
+        ${relBar(n.rel)}
+        ${tensionBar(n.tension)}
+        ${trustBar(n.trust)}
+        <div class="neighbour-meta"><span>Posture: ${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Trust ${n.trust}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+      </div>
+    `).join('') || '<div class="events">No land neighbours in this dataset.</div>';
+  }
+
+  const eventsNode = node.querySelector('[data-dossier-events]');
+  if (eventsNode) {
+    eventsNode.innerHTML = state.events
+      .filter((e) => e.cca3 === selected.cca3 || e.secondary === selected.cca3)
+      .slice(0, 8)
+      .map((e) => `<div>T${e.turn}: ${e.text}${e.secondary ? ` (${e.cca3} ↔ ${e.secondary})` : ''}</div>`)
+      .join('') || '<div>None.</div>';
+  }
 }
