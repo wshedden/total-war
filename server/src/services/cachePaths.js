@@ -7,6 +7,7 @@ export const paths = {
   raw: path.join(root, 'data', 'raw'),
   cache: path.join(root, 'data', 'cache'),
   borders: path.join(root, 'data', 'cache', 'borders.topo.json'),
+  neighbours: path.join(root, 'data', 'cache', 'neighbours.json'),
   countryIndex: path.join(root, 'data', 'cache', 'countryIndex.json'),
   meta: path.join(root, 'data', 'cache', 'meta.json'),
   overrides: path.join(root, 'data', 'codeOverrides.json')

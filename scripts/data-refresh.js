@@ -8,6 +8,7 @@ import { fetchJson } from '../server/src/services/fetcher.js';
 import { INDICATORS, fetchWorldBankLatest } from '../server/src/services/indicators.js';
 import { loadOverrides, resolveCode } from '../server/src/services/reconcileCodes.js';
 import { logger } from '../server/src/services/logger.js';
+import { buildNeighbours } from './build-neighbours.js';
 
 const args = new Set(process.argv.slice(2));
 const doRefresh = args.has('--refresh');
@@ -101,6 +102,7 @@ async function buildCache() {
   const topo = topology({ countries: worldFeatureCollection }, 1e5);
   await writeJson(paths.borders, topo);
   await writeJson(paths.countryIndex, countryIndex);
+  await buildNeighbours();
   await writeJson(paths.meta, { version: '0.1.0', generatedAt: new Date().toISOString(), sources: { bordersUrl, restCountriesUrl, worldBank: INDICATORS } });
   logger.info(`Cache built: ${Object.keys(countryIndex).length} countries.`);
 }

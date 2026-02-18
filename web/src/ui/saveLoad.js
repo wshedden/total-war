@@ -1,3 +1,5 @@
+import { serializeRelations } from '../state/relationships.js';
+
 const KEY = 'total-war-v0-save';
 
 export function makeSnapshot(state) {
@@ -11,7 +13,9 @@ export function makeSnapshot(state) {
     overlay: state.overlay,
     metric: state.metric,
     dynamic: state.dynamic,
-    events: state.events
+    events: state.events,
+    postureByCountry: state.postureByCountry,
+    relationsEdges: serializeRelations(state.relationEdges, state.relations)
   };
 }
 
@@ -21,7 +25,12 @@ export function saveToLocal(snapshot) {
 
 export function loadFromLocal() {
   const raw = localStorage.getItem(KEY);
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function exportJson(snapshot) {
@@ -41,7 +50,11 @@ export function importJsonFile() {
       const file = input.files?.[0];
       if (!file) return resolve(null);
       const text = await file.text();
-      resolve(JSON.parse(text));
+      try {
+        resolve(JSON.parse(text));
+      } catch {
+        resolve(null);
+      }
     };
     input.click();
   });

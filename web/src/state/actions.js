@@ -1,4 +1,5 @@
-import { simulateTurn } from './store.js';
+import { simulateTurn, createInitialRelations, createInitialSimState } from './store.js';
+import { hydrateRelations } from './relationships.js';
 
 export function createActions(store) {
   return {
@@ -33,10 +34,31 @@ export function createActions(store) {
       store.setState((s) => ({ ...s, search: value }));
     },
     newGame(seed) {
-      store.setState((s) => ({ ...s, seed, turn: 0, events: [] }));
+      store.setState((s) => {
+        const { relations, edges } = createInitialRelations(seed, s.neighbours, s.countryIndex);
+        return {
+          ...s,
+          seed,
+          turn: 0,
+          events: [],
+          dynamic: createInitialSimState(s.countryIndex),
+          relations,
+          relationEdges: edges,
+          postureByCountry: {}
+        };
+      });
     },
     loadState(snapshot) {
-      store.setState((s) => ({ ...s, ...snapshot }));
+      store.setState((s) => {
+        const hydrated = hydrateRelations(s.neighbours, snapshot.relationsEdges ?? []);
+        return {
+          ...s,
+          ...snapshot,
+          relations: hydrated.relations,
+          relationEdges: hydrated.edges,
+          postureByCountry: snapshot.postureByCountry ?? {}
+        };
+      });
     }
   };
 }
