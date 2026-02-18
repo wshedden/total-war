@@ -10,6 +10,7 @@ export function createRenderer(canvas, topo, getState) {
   let width = 1;
   let height = 1;
   let pickCache = [];
+  let pickByCca3 = {};
   let path = null;
   let cameraKey = '';
   let metricRangeKey = '';
@@ -31,6 +32,10 @@ export function createRenderer(canvas, topo, getState) {
     if (nextCameraKey !== cameraKey || !path) {
       ({ path } = createProjection(width, height, state.camera));
       pickCache = rebuildPickCache(world.features, path);
+      pickByCca3 = {};
+      for (const entry of pickCache) {
+        pickByCca3[entry.feature.properties.cca3] = entry;
+      }
       spherePath2d = new Path2D(path({ type: 'Sphere' }));
       cameraKey = nextCameraKey;
     }
@@ -82,12 +87,12 @@ export function createRenderer(canvas, topo, getState) {
       ctx.restore();
     }
 
-    const hover = pickCache.find((e) => e.feature.properties.cca3 === state.hovered);
+    const hover = pickByCca3[state.hovered];
     if (hover) {
       ctx.save(); ctx.setLineDash([4, 4]);
       ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.2; ctx.stroke(hover.path2d); ctx.restore();
     }
-    const selected = pickCache.find((e) => e.feature.properties.cca3 === state.selected);
+    const selected = pickByCca3[state.selected];
     if (selected) {
       ctx.save(); ctx.setLineDash([6, 4]);
       ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.stroke(selected.path2d); ctx.restore();
