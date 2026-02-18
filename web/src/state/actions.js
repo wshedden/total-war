@@ -1,5 +1,6 @@
 import { simulateTurn, createInitialRelations, createInitialSimState } from './store.js';
 import { hydrateRelations } from './relationships.js';
+import { normalizeDynamicState } from './policies.js';
 
 export function createActions(store) {
   return {
@@ -54,6 +55,7 @@ export function createActions(store) {
         return {
           ...s,
           ...snapshot,
+          dynamic: normalizeDynamicState(snapshot.dynamic, s.countryIndex),
           relations: hydrated.relations,
           relationEdges: hydrated.edges,
           postureByCountry: snapshot.postureByCountry ?? {}
