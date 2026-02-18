@@ -23,6 +23,11 @@ export async function getCountryList() {
   }));
 }
 
+export async function getFullCountryList() {
+  const index = await loadCountryIndex();
+  return Object.values(index);
+}
+
 export async function getCountry(cca3) {
   const index = await loadCountryIndex();
   return index[cca3] ?? null;
