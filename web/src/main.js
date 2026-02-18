@@ -126,6 +126,11 @@ function getDossierInputs(state) {
   const neighbourSlice = selected
     ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join('|')
     : '';
+  const policy = dyn?.policy;
+  const selectedCooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : '';
+  const queuedAction = state.queuedPlayerAction
+    ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}`
+    : '';
   return {
     selected,
     dossierOpen: state.dossierOpen,
@@ -135,6 +140,14 @@ function getDossierInputs(state) {
     influence: dyn?.influence,
     influenceGainHint: influenceHint?.gain,
     influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
+    policyMilitaryTarget: policy?.milTargetPct,
+    policyGrowthFocus: policy?.growthFocus,
+    policyStabilityFocus: policy?.stabilityFocus,
+    policyStance: policy?.stance,
+    actionUsedTurn: dyn?.actionUsedTurn,
+    cooldowns: selectedCooldowns,
+    queuedAction,
+    turn: state.turn,
     eventSlice,
     neighbourSlice
   };
@@ -260,7 +273,7 @@ function drawNow() {
 
   const dossierInputs = getDossierInputs(state);
   if (!shallowEqual(prevDossierInputs, dossierInputs)) {
-    renderDossier(ui.dossier, state);
+    renderDossier(ui.dossier, state, actions);
     prevDossierInputs = dossierInputs;
   }
 
