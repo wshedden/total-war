@@ -11,6 +11,12 @@
 * { box-sizing: border-box; }
 body { margin: 0; font: 15px/1.4 Inter, Segoe UI, Arial, sans-serif; background: var(--bg); color: var(--text); }
 button, select, input { font: inherit; color: inherit; background: var(--panel-2); border: 1px solid #2c3c52; border-radius: 8px; padding: 0.4rem 0.6rem; }
+button,
+.dip-target,
+.dip-action,
+.policy-step {
+  cursor: pointer;
+}
 button:hover { background: #253954; }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
