@@ -1,6 +1,8 @@
 import { countryTurnRng } from '../util/rng.js';
 import { initRelations, stepRelations } from './relationships.js';
 import { TURN_INFLUENCE_CONFIG, buildTopGdpCountrySet, computeInfluenceGain, applyInfluenceGain } from './influence.js';
+import { normalizeDynamicEntry, DEFAULT_INFLUENCE, DEFAULT_POLICY } from './policies.js';
+import { planActions, applyPlannedActions } from './diplomaticActions.js';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -17,7 +19,7 @@ const POLICY_STABILITY_DELTA_MAX = 0.03;
 
 const STANCE_POLICY_EFFECTS = {
   hardline: { growth: -0.0015, stability: -0.002, trustDelta: -1 },
-  balanced: { growth: 0, stability: 0, trustDelta: 0 },
+  neutral: { growth: 0, stability: 0, trustDelta: 0 },
   conciliatory: { growth: 0.0015, stability: 0.002, trustDelta: 1 }
 };
 
@@ -27,7 +29,7 @@ function getPolicy(entry) {
     milTargetPct: clamp(policy.milTargetPct ?? entry.militaryPct ?? 2.5, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
     growthFocus: clamp(policy.growthFocus ?? 0.5, 0, 1),
     stabilityFocus: clamp(policy.stabilityFocus ?? 0.5, 0, 1),
-    stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : 'balanced'
+    stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : 'neutral'
   };
 }
 
@@ -63,9 +65,9 @@ export function createInitialSimState(countryIndex) {
       militaryPct,
       policy: {
         milTargetPct: clamp(militaryPct, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
-        growthFocus: 0.5,
-        stabilityFocus: 0.5,
-        stance: 'balanced'
+        growthFocus: DEFAULT_POLICY.growthFocus,
+        stabilityFocus: DEFAULT_POLICY.stabilityFocus,
+        stance: DEFAULT_POLICY.stance
       },
       relations: {},
       growthMod: 0,
@@ -73,11 +75,9 @@ export function createInitialSimState(countryIndex) {
       aiBias: 0.5,
       growthRate: 0.01,
       stability: 0.55,
-      influence: 0,
+      influence: DEFAULT_INFLUENCE,
       militarySpendAbs,
       power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0),
-      influence: DEFAULT_INFLUENCE,
-      policy: DEFAULT_POLICY,
       actionUsedTurn: null,
       cooldowns: {}
     };
@@ -156,7 +156,7 @@ export function simulateTurn(state) {
       stability,
       militarySpendAbs,
       power
-    });
+    };
   }
 
   const relStep = stepRelations({
@@ -189,12 +189,26 @@ export function simulateTurn(state) {
     nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
   }
 
-  return {
+  const plannedActions = planActions({
     ...state,
     turn: nextTurn,
     dynamic: nextDynamic,
-    relations: relStep.relations,
+    relations: relStep.relations
+  });
+  const diplomaticStep = applyPlannedActions({
+    ...state,
+    turn: nextTurn,
+    dynamic: nextDynamic,
+    relations: relStep.relations
+  }, plannedActions);
+
+  return {
+    ...state,
+    turn: nextTurn,
+    dynamic: diplomaticStep.dynamic,
+    relations: diplomaticStep.relations,
     postureByCountry: relStep.postureByCountry,
-    events: [...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
+    queuedPlayerAction: null,
+    events: [...diplomaticStep.events, ...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
   };
 }
