@@ -2,6 +2,7 @@ import { feature } from 'topojson-client';
 import { createProjection } from './projection.js';
 import { heatmapColour, stableCountryColour } from './styles.js';
 import { rebuildPickCache } from './picking.js';
+import { selectActiveMetricRange, selectActiveMetricValue } from '../state/metricRange.js';
 
 export function createRenderer(canvas, topo, getState) {
   const ctx = canvas.getContext('2d');
@@ -13,9 +14,6 @@ export function createRenderer(canvas, topo, getState) {
   let pickByCca3 = {};
   let path = null;
   let cameraKey = '';
-  let metricRangeKey = '';
-  let metricMin = 0;
-  let metricMax = 1;
   let spherePath2d = null;
 
   function resize() {
@@ -40,16 +38,7 @@ export function createRenderer(canvas, topo, getState) {
       cameraKey = nextCameraKey;
     }
 
-    const nextMetricRangeKey = `${state.metric}:${state.turn}`;
-    if (nextMetricRangeKey !== metricRangeKey) {
-      const metricValues = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3]; const c = state.countryIndex[cca3];
-        return state.metric === 'militaryPercentGdp' ? d.militaryPct : state.metric === 'gdp' ? d.gdp : c.indicators[state.metric];
-      }).filter(Number.isFinite);
-      metricMin = Math.min(...metricValues);
-      metricMax = Math.max(...metricValues);
-      metricRangeKey = nextMetricRangeKey;
-    }
+    const { min: metricMin, max: metricMax } = selectActiveMetricRange(state);
 
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = 'round';
@@ -64,9 +53,7 @@ export function createRenderer(canvas, topo, getState) {
     for (const entry of pickCache) {
       const { feature: f, path2d } = entry;
       const cca3 = f.properties.cca3;
-      const dynamic = state.dynamic[cca3];
-      const c = state.countryIndex[cca3];
-      const value = state.metric === 'militaryPercentGdp' ? dynamic.militaryPct : state.metric === 'gdp' ? dynamic.gdp : c.indicators[state.metric];
+      const value = selectActiveMetricValue(state, cca3);
       const t = (value - metricMin) / ((metricMax - metricMin) || 1);
       const fill = state.overlay === 'political' ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
       ctx.globalAlpha = alpha;

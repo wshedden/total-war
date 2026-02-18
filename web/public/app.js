@@ -119,6 +119,34 @@ function renderTooltip(node, state, x, y) {
   node.innerHTML = `<strong>${c?.name ?? state.hovered}</strong><div>Pop: ${fmtCompact(c?.population)}</div><div>GDP: ${fmtCompact(d?.gdp)}</div>`;
 }
 
+// web/src/state/metricRange.js
+function getActiveMetricValue(metric, dynamicEntry, country) {
+  if (metric === "militaryPercentGdp") return dynamicEntry?.militaryPct;
+  if (metric === "gdp") return dynamicEntry?.gdp;
+  return country?.indicators?.[metric];
+}
+var memoKey = "";
+var memoDynamic = null;
+var memoCountryIndex = null;
+var memoRange = { min: 0, max: 1 };
+function selectActiveMetricRange(state) {
+  const key = `${state.metric}:${state.turn}`;
+  if (memoKey === key && memoDynamic === state.dynamic && memoCountryIndex === state.countryIndex) {
+    return memoRange;
+  }
+  const values = Object.keys(state.dynamic).map((cca3) => getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3])).filter(Number.isFinite);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 1;
+  memoKey = key;
+  memoDynamic = state.dynamic;
+  memoCountryIndex = state.countryIndex;
+  memoRange = { min, max };
+  return memoRange;
+}
+function selectActiveMetricValue(state, cca3) {
+  return getActiveMetricValue(state.metric, state.dynamic[cca3], state.countryIndex[cca3]);
+}
+
 // web/src/ui/overlays.js
 function renderLegend(node, state) {
   if (state.overlay !== "heatmap") {
@@ -126,13 +154,7 @@ function renderLegend(node, state) {
     return;
   }
   node.hidden = false;
-  const values = Object.keys(state.dynamic).map((cca3) => {
-    const d = state.dynamic[cca3];
-    const c = state.countryIndex[cca3];
-    return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
-  }).filter(Number.isFinite);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const { min, max } = selectActiveMetricRange(state);
   node.innerHTML = `<div><strong>${state.metric}</strong></div><div>${fmtCompact(min)} \u2192 ${fmtCompact(max)}</div>`;
 }
 
@@ -2007,11 +2029,9 @@ function createRenderer(canvas, topo2, getState) {
   let width = 1;
   let height = 1;
   let pickCache = [];
+  let pickByCca3 = {};
   let path = null;
   let cameraKey = "";
-  let metricRangeKey = "";
-  let metricMin = 0;
-  let metricMax = 1;
   let spherePath2d = null;
   function resize() {
     width = canvas.clientWidth;
@@ -2026,20 +2046,14 @@ function createRenderer(canvas, topo2, getState) {
     if (nextCameraKey !== cameraKey || !path) {
       ({ path } = createProjection(width, height, state.camera));
       pickCache = rebuildPickCache(world.features, path);
+      pickByCca3 = {};
+      for (const entry of pickCache) {
+        pickByCca3[entry.feature.properties.cca3] = entry;
+      }
       spherePath2d = new Path2D(path({ type: "Sphere" }));
       cameraKey = nextCameraKey;
     }
-    const nextMetricRangeKey = `${state.metric}:${state.turn}`;
-    if (nextMetricRangeKey !== metricRangeKey) {
-      const metricValues = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3];
-        const c = state.countryIndex[cca3];
-        return state.metric === "militaryPercentGdp" ? d.militaryPct : state.metric === "gdp" ? d.gdp : c.indicators[state.metric];
-      }).filter(Number.isFinite);
-      metricMin = Math.min(...metricValues);
-      metricMax = Math.max(...metricValues);
-      metricRangeKey = nextMetricRangeKey;
-    }
+    const { min: metricMin, max: metricMax } = selectActiveMetricRange(state);
     ctx.clearRect(0, 0, width, height);
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
@@ -2051,9 +2065,7 @@ function createRenderer(canvas, topo2, getState) {
     for (const entry of pickCache) {
       const { feature: f, path2d } = entry;
       const cca3 = f.properties.cca3;
-      const dynamic = state.dynamic[cca3];
-      const c = state.countryIndex[cca3];
-      const value = state.metric === "militaryPercentGdp" ? dynamic.militaryPct : state.metric === "gdp" ? dynamic.gdp : c.indicators[state.metric];
+      const value = selectActiveMetricValue(state, cca3);
       const t = (value - metricMin) / (metricMax - metricMin || 1);
       const fill = state.overlay === "political" ? stableCountryColour(cca3, state.seed) : heatmapColour(t);
       ctx.globalAlpha = alpha;
@@ -2072,7 +2084,7 @@ function createRenderer(canvas, topo2, getState) {
       ctx.stroke(spherePath2d);
       ctx.restore();
     }
-    const hover = pickCache.find((e) => e.feature.properties.cca3 === state.hovered);
+    const hover = pickByCca3[state.hovered];
     if (hover) {
       ctx.save();
       ctx.setLineDash([4, 4]);
@@ -2081,7 +2093,7 @@ function createRenderer(canvas, topo2, getState) {
       ctx.stroke(hover.path2d);
       ctx.restore();
     }
-    const selected = pickCache.find((e) => e.feature.properties.cca3 === state.selected);
+    const selected = pickByCca3[state.selected];
     if (selected) {
       ctx.save();
       ctx.setLineDash([6, 4]);
@@ -2248,12 +2260,8 @@ function drawNow() {
     ...state,
     heatNorm(metric, dyn, c) {
       const v = metric === "militaryPercentGdp" ? dyn.militaryPct : metric === "gdp" ? dyn.gdp : c.indicators[metric];
-      const arr = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3];
-        const cc = state.countryIndex[cca3];
-        return metric === "militaryPercentGdp" ? d.militaryPct : metric === "gdp" ? d.gdp : cc.indicators[metric];
-      });
-      const min = Math.min(...arr), max = Math.max(...arr);
+      const rangeState = metric === state.metric ? state : { ...state, metric };
+      const { min, max } = selectActiveMetricRange(rangeState);
       return (v - min) / (max - min || 1);
     }
   });

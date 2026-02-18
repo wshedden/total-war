@@ -8,6 +8,7 @@ import { renderDebug } from './ui/debug.js';
 import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } from './ui/saveLoad.js';
 import { createStore, createInitialSimState } from './state/store.js';
 import { createActions } from './state/actions.js';
+import { selectActiveMetricRange } from './state/metricRange.js';
 import { createRenderer } from './map/renderer.js';
 import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.js';
 import { pickCountry } from './map/picking.js';
@@ -135,11 +136,8 @@ function drawNow() {
     ...state,
     heatNorm(metric, dyn, c) {
       const v = metric === 'militaryPercentGdp' ? dyn.militaryPct : metric === 'gdp' ? dyn.gdp : c.indicators[metric];
-      const arr = Object.keys(state.dynamic).map((cca3) => {
-        const d = state.dynamic[cca3]; const cc = state.countryIndex[cca3];
-        return metric === 'militaryPercentGdp' ? d.militaryPct : metric === 'gdp' ? d.gdp : cc.indicators[metric];
-      });
-      const min = Math.min(...arr), max = Math.max(...arr);
+      const rangeState = metric === state.metric ? state : { ...state, metric };
+      const { min, max } = selectActiveMetricRange(rangeState);
       return (v - min) / ((max - min) || 1);
     }
   });
