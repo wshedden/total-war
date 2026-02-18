@@ -10,8 +10,8 @@ const STANCE_OPTIONS = [
 
 function relLabel(rel, tension) {
   if (rel <= -40 || tension >= 70) return 'Hostile';
-  if (rel >= 40 && tension < 40) return 'Friendly';
-  return 'Wary';
+  if ((rel >= -20 && rel <= 39) || (tension >= 40 && tension <= 69)) return 'Wary';
+  return rel >= 40 && tension < 40 ? 'Friendly' : 'Wary';
 }
 
 function relBar(rel) {
@@ -22,6 +22,16 @@ function relBar(rel) {
 function tensionBar(tension) {
   return `<div class="tense-bar" title="Border tension 0 to 100"><i style="width:${tension}%"></i></div>`;
 }
+
+function trustBar(trust) {
+  return `<div class="trust-bar" title="Trust 0 to 100"><i style="width:${trust}%"></i></div>`;
+}
+
+const NEIGHBOUR_SORT_MODES = [
+  { value: 'worst-relationship', label: 'worst relationship' },
+  { value: 'highest-tension', label: 'highest tension' },
+  { value: 'alphabetical', label: 'alphabetical' }
+];
 
 function sortNeighbours(selected, state, mode) {
   const items = (state.neighbours?.[selected.cca3] ?? []).map((code) => {
@@ -35,8 +45,9 @@ function sortNeighbours(selected, state, mode) {
       powerRatio: (state.dynamic?.[selected.cca3]?.power ?? 0) / Math.max(1, state.dynamic?.[code]?.power ?? 0)
     };
   });
-  if (mode === 'name') items.sort((a, b) => a.name.localeCompare(b.name));
-  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.code.localeCompare(b.code));
+  if (mode === 'alphabetical') items.sort((a, b) => a.name.localeCompare(b.name));
+  else if (mode === 'highest-tension') items.sort((a, b) => b.tension - a.tension || a.rel - b.rel || a.name.localeCompare(b.name));
+  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.name.localeCompare(b.name));
   return items;
 }
 
@@ -84,7 +95,7 @@ export function renderDossier(node, state, actions) {
     return;
   }
 
-  if (!node.__sortMode) node.__sortMode = 'negative';
+  if (!node.__sortMode) node.__sortMode = 'worst-relationship';
   const neighbours = sortNeighbours(selected, state, node.__sortMode);
 
   const dyn = state.dynamic[selected.cca3];
@@ -167,13 +178,19 @@ export function renderDossier(node, state, actions) {
     <div class="dip-actions">${diplomaticButtons}</div>
 
     <h3>Neighbours</h3>
-    <div class="neighbour-head"><span>Sorted by ${node.__sortMode === 'name' ? 'name' : 'worst relations'}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
+    <div class="neighbour-head">
+      <label for="neighbour-sort" class="neighbour-sort-label">Sort by</label>
+      <select id="neighbour-sort" class="neighbour-sort" data-neighbour-sort>
+        ${NEIGHBOUR_SORT_MODES.map((mode) => `<option value="${mode.value}" ${node.__sortMode === mode.value ? 'selected' : ''}>${mode.label}</option>`).join('')}
+      </select>
+    </div>
     <div class="neighbours">${neighbours.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
         ${relBar(n.rel)}
         ${tensionBar(n.tension)}
-        <div class="neighbour-meta"><span>${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+        ${trustBar(n.trust)}
+        <div class="neighbour-meta"><span>Posture: ${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Trust ${n.trust}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
       </div>
     `).join('') || '<div class="events">No land neighbours in this dataset.</div>'}</div>
     <h3>Recent events</h3>
@@ -184,10 +201,10 @@ export function renderDossier(node, state, actions) {
     node.innerHTML = markup;
     node.__lastMarkup = markup;
 
-    const sortBtn = node.querySelector('.neighbour-sort');
-    if (sortBtn) {
-      sortBtn.onclick = () => {
-        node.__sortMode = node.__sortMode === 'name' ? 'negative' : 'name';
+    const sortSelect = node.querySelector('[data-neighbour-sort]');
+    if (sortSelect) {
+      sortSelect.onchange = (event) => {
+        node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = '';
       };
     }
