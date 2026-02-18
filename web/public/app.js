@@ -25,12 +25,13 @@ function buildLayout(root2) {
   legend.hidden = true;
   const debug = el("div", "debug");
   debug.hidden = true;
+  const floatingLayer = el("div", "floating-layer");
   const dossier = el("aside", "dossier");
-  mapWrap.append(canvas, tooltip, legend, debug);
+  mapWrap.append(canvas, tooltip, legend, debug, floatingLayer);
   main.append(mapWrap, dossier);
   app.append(topbar, main);
   root2.append(app);
-  return { app, topbar, main, mapWrap, canvas, tooltip, legend, debug, dossier };
+  return { app, topbar, main, mapWrap, canvas, tooltip, legend, debug, floatingLayer, dossier };
 }
 
 // web/src/ui/topbar.js
@@ -56,14 +57,15 @@ function renderTopbar(container, actions2) {
   const exportBtn = el("button", "", "Export");
   const importBtn = el("button", "", "Import");
   const newGame = el("button", "", "New Game");
+  const charts = el("button", "", "Charts");
   const help = el("button", "", "Help");
   pause.onclick = () => actions2.togglePause();
   step.onclick = () => actions2.stepTurn();
   speed.onchange = () => actions2.setSpeed(Number(speed.value));
   overlay.onchange = () => actions2.setOverlay(overlay.value);
   metric.onchange = () => actions2.setMetric(metric.value);
-  container.append(search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help);
-  return { search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help };
+  container.append(search, pause, step, speed, overlay, metric, charts, save, load, exportBtn, importBtn, newGame, help);
+  return { search, pause, step, speed, overlay, metric, charts, save, load, exportBtn, importBtn, newGame, help };
 }
 
 // web/src/ui/search.js
@@ -868,6 +870,11 @@ function renderDossier(node, state, actions2, onUiStateChange = null) {
     <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
 
+    <div class="dossier-chart-actions">
+      <button type="button" class="dossier-chart-btn" data-chart-country>Chart this country</button>
+      <button type="button" class="dossier-chart-btn" data-pin-country>Pin to charts</button>
+    </div>
+
     <h3>Policy controls</h3>
     <div class="policy-controls">
       <div class="policy-row">
@@ -930,6 +937,21 @@ function renderDossier(node, state, actions2, onUiStateChange = null) {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = "";
         onUiStateChange?.();
+      };
+    }
+    const chartBtn = node.querySelector("[data-chart-country]");
+    if (chartBtn) {
+      chartBtn.onclick = () => {
+        actions2.setChartsMode("selected");
+        actions2.setChartsWindowOpen(true);
+      };
+    }
+    const pinBtn = node.querySelector("[data-pin-country]");
+    if (pinBtn) {
+      pinBtn.onclick = () => {
+        actions2.pinCountryToCharts(selected.cca3);
+        actions2.setChartsMode("pinned");
+        actions2.setChartsWindowOpen(true);
       };
     }
     node.querySelectorAll("[data-policy-field]").forEach((input) => {
@@ -1104,6 +1126,185 @@ function renderDebug(node, state) {
   }
 }
 
+// web/src/util/stats.js
+function mean(values) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  let sum = 0;
+  let count = 0;
+  for (const value of values) {
+    if (!Number.isFinite(value)) continue;
+    sum += value;
+    count += 1;
+  }
+  return count ? sum / count : null;
+}
+function movingAverage(values, windowSize = 1) {
+  const size = Math.max(1, Number(windowSize) | 0);
+  if (!Array.isArray(values) || size <= 1) return values?.slice?.() ?? [];
+  const out = new Array(values.length).fill(null);
+  let rollingSum = 0;
+  let rollingCount = 0;
+  const queue = [];
+  for (let i = 0; i < values.length; i += 1) {
+    const value = values[i];
+    queue.push(value);
+    if (Number.isFinite(value)) {
+      rollingSum += value;
+      rollingCount += 1;
+    }
+    if (queue.length > size) {
+      const removed = queue.shift();
+      if (Number.isFinite(removed)) {
+        rollingSum -= removed;
+        rollingCount -= 1;
+      }
+    }
+    out[i] = rollingCount ? rollingSum / rollingCount : null;
+  }
+  return out;
+}
+
+// web/src/sim/historyStore.js
+var CHART_METRICS = {
+  gdp: { label: "GDP", format: "number" },
+  gdpPerCapita: { label: "GDP per capita", format: "number" },
+  population: { label: "Population", format: "number" },
+  militaryPercentGdp: { label: "Military % GDP", format: "percent" },
+  militarySpendAbs: { label: "Military spend", format: "number" },
+  power: { label: "Power", format: "number" },
+  stability: { label: "Stability", format: "percent" },
+  influence: { label: "Influence", format: "number" },
+  avgBorderTension: { label: "Average border tension", format: "number" }
+};
+var DEFAULT_HISTORY_MAX_TURNS = 360;
+function emptyMetricSeries(maxTurns) {
+  return new Array(maxTurns).fill(null);
+}
+function createMetricBuckets(countryCodes, maxTurns, metrics) {
+  const perCountry = {};
+  for (const code of countryCodes) {
+    perCountry[code] = Object.fromEntries(metrics.map((metric) => [metric, emptyMetricSeries(maxTurns)]));
+  }
+  return perCountry;
+}
+function getMetricValue(metric, state, cca3) {
+  const country = state.countryIndex?.[cca3];
+  const dynamic = state.dynamic?.[cca3];
+  if (!country || !dynamic) return null;
+  const population = country.population ?? country.indicators?.population ?? 0;
+  if (metric === "gdp") return dynamic.gdp;
+  if (metric === "gdpPerCapita") return population > 0 ? dynamic.gdp / population : null;
+  if (metric === "population") return population;
+  if (metric === "militaryPercentGdp") return dynamic.militaryPct;
+  if (metric === "militarySpendAbs") return dynamic.militarySpendAbs ?? dynamic.gdp * ((dynamic.militaryPct ?? 0) / 100);
+  if (metric === "power") return dynamic.power;
+  if (metric === "stability") return dynamic.stability;
+  if (metric === "influence") return dynamic.influence;
+  if (metric === "avgBorderTension") {
+    const neighbours2 = state.neighbours?.[cca3] ?? [];
+    if (!neighbours2.length) return null;
+    return mean(neighbours2.map((other) => state.relations?.[cca3]?.[other]?.tension ?? null));
+  }
+  return null;
+}
+function createHistoryStore(state, options = {}) {
+  const countryCodes = Object.keys(state.countryIndex ?? {}).sort((a, b) => a.localeCompare(b));
+  const metrics = options.metrics ?? Object.keys(CHART_METRICS);
+  const maxTurns = Math.max(30, Number(options.maxTurns ?? DEFAULT_HISTORY_MAX_TURNS) | 0);
+  return {
+    version: 1,
+    maxTurns,
+    metrics,
+    countryCodes,
+    head: -1,
+    length: 0,
+    turns: emptyMetricSeries(maxTurns),
+    perCountry: createMetricBuckets(countryCodes, maxTurns, metrics)
+  };
+}
+function recordHistoryTurn(history, state, turn = state.turn) {
+  if (!history) return history;
+  const slot = (history.head + 1) % history.maxTurns;
+  history.head = slot;
+  history.length = Math.min(history.length + 1, history.maxTurns);
+  history.turns[slot] = turn;
+  for (const cca3 of history.countryCodes) {
+    const countrySeries = history.perCountry[cca3];
+    for (const metric of history.metrics) {
+      countrySeries[metric][slot] = getMetricValue(metric, state, cca3);
+    }
+  }
+  return history;
+}
+function orderedSlots(history) {
+  if (!history?.length) return [];
+  const slots = [];
+  const start = (history.head - history.length + 1 + history.maxTurns) % history.maxTurns;
+  for (let i = 0; i < history.length; i += 1) {
+    slots.push((start + i) % history.maxTurns);
+  }
+  return slots;
+}
+function getHistorySeries(history, metric, countryCodes, range = "stored") {
+  const slots = orderedSlots(history);
+  const maxPoints = range === "50" ? 50 : range === "200" ? 200 : slots.length;
+  const scopedSlots = maxPoints >= slots.length ? slots : slots.slice(slots.length - maxPoints);
+  const turns = scopedSlots.map((slot) => history.turns[slot]);
+  const series = countryCodes.map((code) => ({
+    code,
+    values: scopedSlots.map((slot) => history.perCountry?.[code]?.[metric]?.[slot] ?? null)
+  }));
+  return { turns, series };
+}
+function getWorldTopCountries(state, metric, limit = 20) {
+  const rows = Object.keys(state.dynamic ?? {}).map((code) => ({
+    code,
+    value: getMetricValue(metric, state, code) ?? Number.NEGATIVE_INFINITY
+  }));
+  rows.sort((a, b) => b.value - a.value || a.code.localeCompare(b.code));
+  return rows.filter((row) => Number.isFinite(row.value)).slice(0, limit);
+}
+function serialiseHistory(history) {
+  if (!history) return null;
+  return {
+    version: history.version,
+    maxTurns: history.maxTurns,
+    metrics: history.metrics,
+    countryCodes: history.countryCodes,
+    head: history.head,
+    length: history.length,
+    turns: history.turns,
+    perCountry: history.perCountry
+  };
+}
+function hydrateHistory(raw, state) {
+  const fallback = createHistoryStore(state);
+  if (!raw || typeof raw !== "object") return fallback;
+  const metrics = Array.isArray(raw.metrics) ? raw.metrics.filter((metric) => CHART_METRICS[metric]) : fallback.metrics;
+  const countryCodes = Array.isArray(raw.countryCodes) ? raw.countryCodes.filter((code) => state.countryIndex?.[code]) : fallback.countryCodes;
+  const maxTurns = Math.max(30, Number(raw.maxTurns) | 0) || fallback.maxTurns;
+  const history = {
+    version: 1,
+    maxTurns,
+    metrics,
+    countryCodes,
+    head: Number.isFinite(raw.head) ? raw.head : -1,
+    length: Number.isFinite(raw.length) ? raw.length : 0,
+    turns: Array.isArray(raw.turns) ? raw.turns.slice(0, maxTurns) : emptyMetricSeries(maxTurns),
+    perCountry: createMetricBuckets(countryCodes, maxTurns, metrics)
+  };
+  for (const code of countryCodes) {
+    for (const metric of metrics) {
+      const source = raw.perCountry?.[code]?.[metric];
+      if (Array.isArray(source)) history.perCountry[code][metric] = source.slice(0, maxTurns);
+    }
+  }
+  history.head = Math.max(-1, Math.min(maxTurns - 1, history.head));
+  history.length = Math.max(0, Math.min(maxTurns, history.length));
+  if (history.turns.length < maxTurns) history.turns.push(...emptyMetricSeries(maxTurns - history.turns.length));
+  return history;
+}
+
 // web/src/ui/saveLoad.js
 var KEY = "total-war-v0-save";
 var SNAPSHOT_SCHEMA_VERSION = 2;
@@ -1153,7 +1354,9 @@ function makeSnapshot(state) {
     relationsEdges: serializeRelations(state.relationEdges, state.relations),
     relationEffects: state.relationEffects,
     pacts: state.relationEffects,
-    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras)
+    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras),
+    charts: state.charts,
+    history: serialiseHistory(state.history)
   };
 }
 function saveToLocal(snapshot) {
@@ -1472,6 +1675,14 @@ function simulateTurn(state) {
 }
 
 // web/src/state/actions.js
+var DEFAULT_CHARTS_STATE = {
+  mode: "selected",
+  metric: "gdp",
+  range: "200",
+  smoothing: "none",
+  pinned: [],
+  window: { x: 48, y: 84, w: 760, h: 460, open: false, z: 10 }
+};
 function toObject(value, fallback = {}) {
   return value != null && typeof value === "object" && !Array.isArray(value) ? value : fallback;
 }
@@ -1595,6 +1806,23 @@ function parseSnapshot(snapshot, baseState) {
     mergeLegacyRelationEdgeExtras(rawRelationEdges, safeSnapshot.relationEdgeExtras),
     hydrated.edges
   );
+  const rawCharts = toObject(safeSnapshot.charts, {});
+  const chartWindow = {
+    ...DEFAULT_CHARTS_STATE.window,
+    ...toObject(rawCharts.window, {})
+  };
+  const charts = {
+    ...DEFAULT_CHARTS_STATE,
+    ...rawCharts,
+    pinned: Array.isArray(rawCharts.pinned) ? rawCharts.pinned.filter((code) => isKnownCountry(baseState.countryIndex, code)) : DEFAULT_CHARTS_STATE.pinned,
+    window: chartWindow
+  };
+  const history = hydrateHistory(safeSnapshot.history, {
+    ...baseState,
+    dynamic: dynamicBase,
+    relations: hydrated.relations,
+    relationEdges: hydrated.edges
+  });
   return {
     seed: safeSnapshot.seed ?? baseState.seed,
     turn: Math.max(0, toInteger(safeSnapshot.turn, baseState.turn)),
@@ -1611,13 +1839,19 @@ function parseSnapshot(snapshot, baseState) {
     postureByCountry: toObject(safeSnapshot.postureByCountry),
     relationEffects,
     relationEdgeExtras,
-    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null)
+    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null),
+    charts,
+    history
   };
 }
 function createActions(store2) {
   return {
     stepTurn() {
-      store2.setState((s) => simulateTurn(s));
+      store2.setState((s) => {
+        const next = simulateTurn(s);
+        const history = recordHistoryTurn(next.history, next, next.turn);
+        return { ...next, history };
+      });
     },
     togglePause() {
       store2.setState((s) => ({ ...s, paused: !s.paused }));
@@ -1649,7 +1883,7 @@ function createActions(store2) {
     newGame(seed) {
       store2.setState((s) => {
         const { relations, edges } = createInitialRelations(seed, s.neighbours, s.countryIndex);
-        return {
+        const nextState = {
           ...s,
           seed,
           turn: 0,
@@ -1659,9 +1893,68 @@ function createActions(store2) {
           relationEdges: edges,
           postureByCountry: {},
           relationEffects: createInitialRelationEffects(),
-          queuedPlayerAction: null
+          queuedPlayerAction: null,
+          charts: {
+            ...DEFAULT_CHARTS_STATE,
+            window: { ...DEFAULT_CHARTS_STATE.window }
+          }
+        };
+        const history = createHistoryStore(nextState);
+        recordHistoryTurn(history, nextState, 0);
+        return {
+          ...nextState,
+          history
         };
       });
+    },
+    setChartsWindowOpen(open) {
+      store2.setState((s) => ({
+        ...s,
+        charts: {
+          ...s.charts,
+          window: {
+            ...s.charts.window,
+            open
+          }
+        }
+      }));
+    },
+    toggleChartsWindow() {
+      store2.setState((s) => ({
+        ...s,
+        charts: {
+          ...s.charts,
+          window: {
+            ...s.charts.window,
+            open: !s.charts.window.open
+          }
+        }
+      }));
+    },
+    setChartsWindowState(windowState) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, window: { ...s.charts.window, ...windowState } } }));
+    },
+    setChartsMode(mode) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, mode } }));
+    },
+    setChartsMetric(metric) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, metric } }));
+    },
+    setChartsRange(range) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, range } }));
+    },
+    setChartsSmoothing(smoothing) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, smoothing } }));
+    },
+    pinCountryToCharts(cca3 = null) {
+      store2.setState((s) => {
+        const code = cca3 ?? s.selected;
+        if (!code || !isKnownCountry(s.countryIndex, code) || s.charts.pinned.includes(code)) return s;
+        return { ...s, charts: { ...s.charts, pinned: [...s.charts.pinned, code] } };
+      });
+    },
+    unpinCountryFromCharts(cca3) {
+      store2.setState((s) => ({ ...s, charts: { ...s.charts, pinned: s.charts.pinned.filter((code) => code !== cca3) } }));
     },
     setPolicyField(field, value, cca3 = null) {
       store2.setState((s) => {
@@ -1702,6 +1995,7 @@ function createActions(store2) {
       store2.setState((s) => {
         const parsed = parseSnapshot(snapshot, s);
         if (!parsed) return s;
+        if (!parsed.history.length) recordHistoryTurn(parsed.history, { ...s, ...parsed }, parsed.turn);
         return {
           ...s,
           seed: parsed.seed,
@@ -1719,7 +2013,9 @@ function createActions(store2) {
           postureByCountry: parsed.postureByCountry,
           relationEffects: parsed.relationEffects,
           relationEdgeExtras: parsed.relationEdgeExtras,
-          queuedPlayerAction: parsed.queuedPlayerAction
+          queuedPlayerAction: parsed.queuedPlayerAction,
+          charts: parsed.charts,
+          history: parsed.history
         };
       });
     }
@@ -3610,6 +3906,393 @@ function createFpsCounter() {
   };
 }
 
+// web/src/ui/floatingWindow.js
+function clamp5(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function createFloatingWindow({ parent, title, state, minWidth = 420, minHeight = 300, onStateChange, onClose }) {
+  const root2 = el("section", "floating-window");
+  root2.setAttribute("role", "dialog");
+  root2.setAttribute("aria-label", title);
+  const titleBar = el("header", "floating-window__titlebar");
+  const titleText = el("strong", "floating-window__title", title);
+  const closeBtn = el("button", "floating-window__close", "\xD7");
+  closeBtn.type = "button";
+  closeBtn.title = "Close";
+  titleBar.append(titleText, closeBtn);
+  const body = el("div", "floating-window__body");
+  const resize = el("div", "floating-window__resize-handle");
+  resize.title = "Resize";
+  root2.append(titleBar, body, resize);
+  parent.append(root2);
+  function applyRect(rect) {
+    const maxX = Math.max(0, window.innerWidth - rect.w);
+    const maxY = Math.max(0, window.innerHeight - rect.h);
+    const x = clamp5(rect.x, 0, maxX);
+    const y = clamp5(rect.y, 0, maxY);
+    const w = clamp5(rect.w, minWidth, window.innerWidth - 20);
+    const h = clamp5(rect.h, minHeight, window.innerHeight - 20);
+    root2.style.left = `${x}px`;
+    root2.style.top = `${y}px`;
+    root2.style.width = `${w}px`;
+    root2.style.height = `${h}px`;
+    return { x, y, w, h, open: true, z: rect.z ?? 10 };
+  }
+  let currentRect = applyRect(state);
+  function updateRect(nextRect) {
+    currentRect = applyRect(nextRect);
+    onStateChange?.(currentRect);
+  }
+  function consumePointer(e) {
+    e.stopPropagation();
+  }
+  ["pointerdown", "pointermove", "pointerup", "mousedown", "mouseup", "click", "wheel"].forEach((eventName) => {
+    root2.addEventListener(eventName, consumePointer);
+  });
+  function beginDrag(e, kind) {
+    e.preventDefault();
+    e.stopPropagation();
+    const origin = {
+      x: e.clientX,
+      y: e.clientY,
+      rect: { ...currentRect }
+    };
+    const onMove = (moveEvent) => {
+      const dx = moveEvent.clientX - origin.x;
+      const dy = moveEvent.clientY - origin.y;
+      if (kind === "move") {
+        updateRect({ ...currentRect, x: origin.rect.x + dx, y: origin.rect.y + dy });
+      } else {
+        updateRect({
+          ...currentRect,
+          w: origin.rect.w + dx,
+          h: origin.rect.h + dy
+        });
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+  titleBar.addEventListener("pointerdown", (e) => beginDrag(e, "move"));
+  resize.addEventListener("pointerdown", (e) => beginDrag(e, "resize"));
+  closeBtn.onclick = () => {
+    onClose?.();
+  };
+  window.addEventListener("resize", () => {
+    updateRect(currentRect);
+  });
+  return {
+    body,
+    root: root2,
+    setState(nextState) {
+      currentRect = applyRect(nextState);
+      root2.style.display = nextState.open ? "grid" : "none";
+      root2.style.zIndex = String(nextState.z ?? 10);
+    }
+  };
+}
+
+// web/src/ui/chartCanvas.js
+function clamp6(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function formatValue(value, format) {
+  if (!Number.isFinite(value)) return "\u2014";
+  if (format === "percent") return fmtPercent(value);
+  return fmtCompact(value);
+}
+function getMinMax(series) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const item of series) {
+    for (const value of item.values) {
+      if (!Number.isFinite(value)) continue;
+      min = Math.min(min, value);
+      max = Math.max(max, value);
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return { min: 0, max: 1 };
+  if (min === max) return { min: min * 0.95, max: max * 1.05 + 1e-9 };
+  const pad = (max - min) * 0.1;
+  return { min: min - pad, max: max + pad };
+}
+function createChartCanvas(container) {
+  const canvas = document.createElement("canvas");
+  canvas.className = "chart-canvas";
+  const tooltip = document.createElement("div");
+  tooltip.className = "chart-tooltip";
+  tooltip.hidden = true;
+  container.append(canvas, tooltip);
+  const ctx = canvas.getContext("2d");
+  let hoverState = null;
+  function resizeToContainer() {
+    const width = Math.max(320, container.clientWidth - 12);
+    const height = Math.max(220, container.clientHeight - 12);
+    canvas.width = Math.floor(width * window.devicePixelRatio);
+    canvas.height = Math.floor(height * window.devicePixelRatio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+  }
+  function drawLineChart(model) {
+    resizeToContainer();
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const pad = { left: 56, right: 18, top: 18, bottom: 30 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#0e1523";
+    ctx.fillRect(0, 0, width, height);
+    const { min, max } = getMinMax(model.series);
+    const xMaxIndex = Math.max(1, model.turns.length - 1);
+    ctx.strokeStyle = "#26354a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i <= 4; i += 1) {
+      const y = pad.top + plotH * i / 4;
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(width - pad.right, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = "#39506d";
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, height - pad.bottom);
+    ctx.lineTo(width - pad.right, height - pad.bottom);
+    ctx.stroke();
+    ctx.fillStyle = "#9db3cc";
+    ctx.font = "12px Inter, sans-serif";
+    for (let i = 0; i <= 4; i += 1) {
+      const y = pad.top + plotH * i / 4;
+      const value = max - (max - min) * i / 4;
+      ctx.fillText(formatValue(value, model.format), 8, y + 4);
+    }
+    if (model.turns.length) {
+      ctx.fillText(`Turn ${model.turns[0]}`, pad.left, height - 8);
+      ctx.fillText(`Turn ${model.turns[model.turns.length - 1]}`, width - pad.right - 64, height - 8);
+    }
+    for (const item of model.series) {
+      ctx.strokeStyle = item.colour;
+      ctx.lineWidth = item.highlight ? 2.8 : 1.7;
+      ctx.beginPath();
+      let started = false;
+      item.values.forEach((value, i) => {
+        if (!Number.isFinite(value)) return;
+        const x = pad.left + plotW * i / xMaxIndex;
+        const y = pad.top + (max - value) / (max - min || 1) * plotH;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    }
+    hoverState = { model, pad, plotW, plotH, min, max, xMaxIndex };
+  }
+  function drawBars(model) {
+    resizeToContainer();
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#0e1523";
+    ctx.fillRect(0, 0, width, height);
+    const pad = { left: 44, right: 14, top: 20, bottom: 60 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+    const max = Math.max(1, ...model.rows.map((row) => row.value));
+    const barW = plotW / Math.max(1, model.rows.length);
+    ctx.strokeStyle = "#39506d";
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, pad.top + plotH);
+    ctx.lineTo(width - pad.right, pad.top + plotH);
+    ctx.stroke();
+    model.rows.forEach((row, index) => {
+      const x = pad.left + index * barW + 1;
+      const h = row.value / max * (plotH - 4);
+      const y = pad.top + plotH - h;
+      ctx.fillStyle = row.colour;
+      ctx.fillRect(x, y, Math.max(2, barW - 3), h);
+      if (index % 2 === 0) {
+        ctx.fillStyle = "#9db3cc";
+        ctx.font = "11px Inter, sans-serif";
+        ctx.save();
+        ctx.translate(x + (barW - 2) / 2, height - 48);
+        ctx.rotate(-Math.PI / 3);
+        ctx.fillText(row.code, 0, 0);
+        ctx.restore();
+      }
+    });
+    hoverState = null;
+    tooltip.hidden = true;
+  }
+  canvas.addEventListener("mousemove", (event) => {
+    if (!hoverState) return;
+    const { model, pad, plotW, xMaxIndex } = hoverState;
+    const x = clamp6(event.offsetX, pad.left, pad.left + plotW);
+    const index = Math.round((x - pad.left) / plotW * xMaxIndex);
+    const lines = [];
+    for (const item of model.series) {
+      const value = item.values[index];
+      if (!Number.isFinite(value)) continue;
+      lines.push(`<div><span style="color:${item.colour}">\u25CF</span> ${item.label}: ${formatValue(value, model.format)}</div>`);
+    }
+    if (!lines.length) {
+      tooltip.hidden = true;
+      return;
+    }
+    tooltip.hidden = false;
+    tooltip.style.left = `${event.offsetX + 14}px`;
+    tooltip.style.top = `${event.offsetY + 14}px`;
+    tooltip.innerHTML = `<strong>Turn ${model.turns[index] ?? "\u2014"}</strong>${lines.join("")}`;
+  });
+  canvas.addEventListener("mouseleave", () => {
+    tooltip.hidden = true;
+  });
+  return {
+    drawLineChart,
+    drawBars
+  };
+}
+
+// web/src/ui/chartsWindow.js
+var MODE_OPTIONS = [
+  { value: "selected", label: "Selected" },
+  { value: "pinned", label: "Pinned" },
+  { value: "world", label: "World" },
+  { value: "region", label: "Region" },
+  { value: "neighbours", label: "Neighbours" }
+];
+function el2(tag, className) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  return node;
+}
+function toCountryLabel(state, code) {
+  return `${state.countryIndex?.[code]?.name ?? code} (${code})`;
+}
+function getRegionCountryCodes(state, selected) {
+  if (!selected) return [];
+  const region = state.countryIndex?.[selected]?.region;
+  if (!region) return [];
+  return Object.keys(state.countryIndex).filter((code) => state.countryIndex[code].region === region);
+}
+function getNeighbourCountryCodes(state, selected) {
+  if (!selected) return [];
+  const neighbours2 = state.neighbours?.[selected] ?? [];
+  return [selected, ...neighbours2.slice(0, 5)];
+}
+function withSmoothing(series, smoothing) {
+  const windowSize = smoothing === "3" ? 3 : smoothing === "7" ? 7 : 1;
+  return series.map((item) => ({ ...item, values: movingAverage(item.values, windowSize) }));
+}
+function createChartsWindow({ parent, actions: actions2, getState }) {
+  const panel = el2("div", "charts-panel");
+  const controls2 = el2("div", "charts-controls");
+  const modeSelect = el2("select");
+  MODE_OPTIONS.forEach((option) => {
+    const node = el2("option");
+    node.value = option.value;
+    node.textContent = option.label;
+    modeSelect.append(node);
+  });
+  const metricSelect = el2("select");
+  Object.entries(CHART_METRICS).forEach(([value, meta]) => {
+    const node = el2("option");
+    node.value = value;
+    node.textContent = meta.label;
+    metricSelect.append(node);
+  });
+  const rangeSelect = el2("select");
+  rangeSelect.innerHTML = '<option value="50">Last 50 turns</option><option value="200">Last 200 turns</option><option value="stored">All stored</option>';
+  const smoothingSelect = el2("select");
+  smoothingSelect.innerHTML = '<option value="none">No smoothing</option><option value="3">3-turn moving average</option><option value="7">7-turn moving average</option>';
+  controls2.append(modeSelect, metricSelect, rangeSelect, smoothingSelect);
+  const pinnedWrap = el2("div", "charts-pinned");
+  const chartWrap = el2("div", "charts-canvas-wrap");
+  panel.append(controls2, pinnedWrap, chartWrap);
+  const floating = createFloatingWindow({
+    parent,
+    title: "Charts",
+    state: getState().charts.window,
+    onStateChange: (windowState) => actions2.setChartsWindowState(windowState),
+    onClose: () => actions2.setChartsWindowOpen(false)
+  });
+  floating.body.append(panel);
+  const canvas = createChartCanvas(chartWrap);
+  function renderPinned(state) {
+    pinnedWrap.innerHTML = "";
+    const title = el2("div", "charts-pinned__title");
+    title.textContent = "Pinned countries";
+    pinnedWrap.append(title);
+    if (!state.charts.pinned.length) {
+      const empty = el2("div", "charts-pinned__empty");
+      empty.textContent = "No countries pinned yet.";
+      pinnedWrap.append(empty);
+      return;
+    }
+    for (const code of state.charts.pinned) {
+      const tag = el2("button", "charts-tag");
+      tag.type = "button";
+      tag.style.borderColor = stableCountryColour(code, state.seed);
+      tag.textContent = code;
+      tag.title = toCountryLabel(state, code);
+      tag.onclick = () => actions2.unpinCountryFromCharts(code);
+      pinnedWrap.append(tag);
+    }
+  }
+  function resolveCodesForMode(state) {
+    const selected = state.selected;
+    if (state.charts.mode === "selected") return selected ? [selected] : [];
+    if (state.charts.mode === "pinned") return state.charts.pinned;
+    if (state.charts.mode === "region") return getRegionCountryCodes(state, selected).slice(0, 6);
+    if (state.charts.mode === "neighbours") return getNeighbourCountryCodes(state, selected);
+    return selected ? [selected] : [];
+  }
+  function renderChart(state) {
+    floating.setState(state.charts.window);
+    modeSelect.value = state.charts.mode;
+    metricSelect.value = state.charts.metric;
+    rangeSelect.value = state.charts.range;
+    smoothingSelect.value = state.charts.smoothing;
+    renderPinned(state);
+    if (!state.charts.window.open) return;
+    if (state.charts.mode === "world") {
+      const rows = getWorldTopCountries(state, state.charts.metric, 20).map((row) => ({ ...row, colour: stableCountryColour(row.code, state.seed) }));
+      canvas.drawBars({ rows });
+      return;
+    }
+    const codes = resolveCodesForMode(state);
+    const { turns, series } = getHistorySeries(state.history, state.charts.metric, codes, state.charts.range);
+    const smoothed = withSmoothing(series, state.charts.smoothing);
+    const lineSeries = smoothed.map((item) => ({
+      ...item,
+      label: toCountryLabel(state, item.code),
+      colour: stableCountryColour(item.code, state.seed),
+      highlight: item.code === state.selected
+    }));
+    canvas.drawLineChart({
+      turns,
+      series: lineSeries,
+      format: CHART_METRICS[state.charts.metric]?.format ?? "number"
+    });
+  }
+  modeSelect.onchange = () => actions2.setChartsMode(modeSelect.value);
+  metricSelect.onchange = () => actions2.setChartsMetric(metricSelect.value);
+  rangeSelect.onchange = () => actions2.setChartsRange(rangeSelect.value);
+  smoothingSelect.onchange = () => actions2.setChartsSmoothing(smoothingSelect.value);
+  return {
+    render: renderChart
+  };
+}
+
 // web/src/main.js
 var root = document.getElementById("app");
 async function fetchJsonSafe(url, fallback) {
@@ -3637,6 +4320,14 @@ var neighbours = neighboursPayload?.neighbours ?? {};
 var initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 root.innerHTML = "";
 var ui = buildLayout(root);
+var defaultCharts = {
+  mode: "selected",
+  metric: "gdp",
+  range: "200",
+  smoothing: "none",
+  pinned: [],
+  window: { x: 48, y: 84, w: 760, h: 460, open: false, z: 10 }
+};
 var store = createStore({
   seed: 1337,
   turn: 0,
@@ -3657,8 +4348,13 @@ var store = createStore({
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
   postureByCountry: {},
-  relationEffects: createInitialRelationEffects()
+  relationEffects: createInitialRelationEffects(),
+  charts: defaultCharts,
+  history: null
 });
+var bootHistory = createHistoryStore(store.getState());
+recordHistoryTurn(bootHistory, store.getState(), 0);
+store.setState((state) => ({ ...state, history: bootHistory }));
 var actions = createActions(store);
 var controls = renderTopbar(ui.topbar, actions);
 wireSearch(controls.search, fullCountries, actions);
@@ -3673,6 +4369,7 @@ controls.importBtn.onclick = async () => {
   if (s) actions.loadState(s);
 };
 controls.newGame.onclick = () => actions.newGame(Math.random() * 1e9 | 0);
+controls.charts.onclick = () => actions.toggleChartsWindow();
 controls.help.onclick = () => showHelp();
 var renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
@@ -3683,11 +4380,17 @@ var latestHoverPointer = null;
 var hoverPickQueued = false;
 var debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 var fpsCounter = createFpsCounter();
+var chartsWindow = createChartsWindow({
+  parent: ui.floatingLayer,
+  actions,
+  getState: store.getState
+});
 var prevTooltipInputs = null;
 var prevDossierStructuralInputs = null;
 var prevDossierTelemetryInputs = null;
 var prevLegendInputs = null;
 var prevDebugInputs = null;
+var prevChartsInputs = null;
 function getTooltipInputs(state) {
   const hovered = state.hovered;
   const country = hovered ? state.countryIndex[hovered] : null;
@@ -3751,6 +4454,21 @@ function getLegendInputs(state) {
     max
   };
 }
+function getChartsInputs(state) {
+  return {
+    turn: state.turn,
+    selected: state.selected,
+    chartsMode: state.charts?.mode,
+    chartsMetric: state.charts?.metric,
+    chartsRange: state.charts?.range,
+    chartsSmoothing: state.charts?.smoothing,
+    pinned: (state.charts?.pinned ?? []).join(","),
+    open: state.charts?.window?.open,
+    rect: `${state.charts?.window?.x},${state.charts?.window?.y},${state.charts?.window?.w},${state.charts?.window?.h}`,
+    historyHead: state.history?.head,
+    historyLength: state.history?.length
+  };
+}
 function getDebugInputs(state) {
   return {
     debug: state.debug,
@@ -3809,7 +4527,10 @@ ui.canvas.addEventListener("wheel", (e) => {
   actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY, ui.canvas.clientWidth, ui.canvas.clientHeight));
 }, { passive: false });
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeHelp();
+  if (e.key === "Escape") {
+    closeHelp();
+    if (store.getState().charts.window.open) actions.setChartsWindowOpen(false);
+  }
   if (isTypingTarget()) return;
   if (e.code === "Space") {
     e.preventDefault();
@@ -3821,6 +4542,7 @@ window.addEventListener("keydown", (e) => {
     controls.search.focus();
   }
   if (e.key.toLowerCase() === "d") actions.toggleDebug();
+  if (e.key.toLowerCase() === "g") actions.toggleChartsWindow();
 });
 var acc = 0;
 var last = performance.now();
@@ -3892,6 +4614,11 @@ function drawNow() {
       }
     });
     prevLegendInputs = legendInputs;
+  }
+  const chartsInputs = getChartsInputs(state);
+  if (!shallowEqual(prevChartsInputs, chartsInputs)) {
+    chartsWindow.render(state);
+    prevChartsInputs = chartsInputs;
   }
   const debugState = { ...state, debugInfo };
   const debugInputs = getDebugInputs(debugState);

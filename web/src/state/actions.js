@@ -3,6 +3,16 @@ import { edgeKey, hydrateRelations } from './relationships.js';
 import { clampActionUsage, clampInfluence, clampPolicy, normalizeDynamicState } from './policies.js';
 import { hydrateRelationEffectsState } from './relationEffects.js';
 import { ACTION_DEFINITIONS, checkActionPreconditions } from './diplomaticActions.js';
+import { createHistoryStore, recordHistoryTurn, hydrateHistory } from '../sim/historyStore.js';
+
+const DEFAULT_CHARTS_STATE = {
+  mode: 'selected',
+  metric: 'gdp',
+  range: '200',
+  smoothing: 'none',
+  pinned: [],
+  window: { x: 48, y: 84, w: 760, h: 460, open: false, z: 10 }
+};
 
 function toObject(value, fallback = {}) {
   return value != null && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
@@ -162,6 +172,27 @@ function parseSnapshot(snapshot, baseState) {
     hydrated.edges
   );
 
+  const rawCharts = toObject(safeSnapshot.charts, {});
+  const chartWindow = {
+    ...DEFAULT_CHARTS_STATE.window,
+    ...toObject(rawCharts.window, {})
+  };
+  const charts = {
+    ...DEFAULT_CHARTS_STATE,
+    ...rawCharts,
+    pinned: Array.isArray(rawCharts.pinned)
+      ? rawCharts.pinned.filter((code) => isKnownCountry(baseState.countryIndex, code))
+      : DEFAULT_CHARTS_STATE.pinned,
+    window: chartWindow
+  };
+
+  const history = hydrateHistory(safeSnapshot.history, {
+    ...baseState,
+    dynamic: dynamicBase,
+    relations: hydrated.relations,
+    relationEdges: hydrated.edges
+  });
+
   return {
     seed: safeSnapshot.seed ?? baseState.seed,
     turn: Math.max(0, toInteger(safeSnapshot.turn, baseState.turn)),
@@ -178,14 +209,20 @@ function parseSnapshot(snapshot, baseState) {
     postureByCountry: toObject(safeSnapshot.postureByCountry),
     relationEffects,
     relationEdgeExtras,
-    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null)
+    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null),
+    charts,
+    history
   };
 }
 
 export function createActions(store) {
   return {
     stepTurn() {
-      store.setState((s) => simulateTurn(s));
+      store.setState((s) => {
+        const next = simulateTurn(s);
+        const history = recordHistoryTurn(next.history, next, next.turn);
+        return { ...next, history };
+      });
     },
     togglePause() {
       store.setState((s) => ({ ...s, paused: !s.paused }));
@@ -217,7 +254,7 @@ export function createActions(store) {
     newGame(seed) {
       store.setState((s) => {
         const { relations, edges } = createInitialRelations(seed, s.neighbours, s.countryIndex);
-        return {
+        const nextState = {
           ...s,
           seed,
           turn: 0,
@@ -227,9 +264,68 @@ export function createActions(store) {
           relationEdges: edges,
           postureByCountry: {},
           relationEffects: createInitialRelationEffects(),
-          queuedPlayerAction: null
+          queuedPlayerAction: null,
+          charts: {
+            ...DEFAULT_CHARTS_STATE,
+            window: { ...DEFAULT_CHARTS_STATE.window }
+          }
+        };
+        const history = createHistoryStore(nextState);
+        recordHistoryTurn(history, nextState, 0);
+        return {
+          ...nextState,
+          history
         };
       });
+    },
+    setChartsWindowOpen(open) {
+      store.setState((s) => ({
+        ...s,
+        charts: {
+          ...s.charts,
+          window: {
+            ...s.charts.window,
+            open
+          }
+        }
+      }));
+    },
+    toggleChartsWindow() {
+      store.setState((s) => ({
+        ...s,
+        charts: {
+          ...s.charts,
+          window: {
+            ...s.charts.window,
+            open: !s.charts.window.open
+          }
+        }
+      }));
+    },
+    setChartsWindowState(windowState) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, window: { ...s.charts.window, ...windowState } } }));
+    },
+    setChartsMode(mode) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, mode } }));
+    },
+    setChartsMetric(metric) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, metric } }));
+    },
+    setChartsRange(range) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, range } }));
+    },
+    setChartsSmoothing(smoothing) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, smoothing } }));
+    },
+    pinCountryToCharts(cca3 = null) {
+      store.setState((s) => {
+        const code = cca3 ?? s.selected;
+        if (!code || !isKnownCountry(s.countryIndex, code) || s.charts.pinned.includes(code)) return s;
+        return { ...s, charts: { ...s.charts, pinned: [...s.charts.pinned, code] } };
+      });
+    },
+    unpinCountryFromCharts(cca3) {
+      store.setState((s) => ({ ...s, charts: { ...s.charts, pinned: s.charts.pinned.filter((code) => code !== cca3) } }));
     },
     setPolicyField(field, value, cca3 = null) {
       store.setState((s) => {
@@ -270,6 +366,7 @@ export function createActions(store) {
       store.setState((s) => {
         const parsed = parseSnapshot(snapshot, s);
         if (!parsed) return s;
+        if (!parsed.history.length) recordHistoryTurn(parsed.history, { ...s, ...parsed }, parsed.turn);
         return {
           ...s,
           seed: parsed.seed,
@@ -287,7 +384,9 @@ export function createActions(store) {
           postureByCountry: parsed.postureByCountry,
           relationEffects: parsed.relationEffects,
           relationEdgeExtras: parsed.relationEdgeExtras,
-          queuedPlayerAction: parsed.queuedPlayerAction
+          queuedPlayerAction: parsed.queuedPlayerAction,
+          charts: parsed.charts,
+          history: parsed.history
         };
       });
     }

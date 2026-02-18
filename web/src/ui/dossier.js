@@ -147,6 +147,11 @@ export function renderDossier(node, state, actions, onUiStateChange = null) {
     <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
 
+    <div class="dossier-chart-actions">
+      <button type="button" class="dossier-chart-btn" data-chart-country>Chart this country</button>
+      <button type="button" class="dossier-chart-btn" data-pin-country>Pin to charts</button>
+    </div>
+
     <h3>Policy controls</h3>
     <div class="policy-controls">
       <div class="policy-row">
@@ -211,6 +216,23 @@ export function renderDossier(node, state, actions, onUiStateChange = null) {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = '';
         onUiStateChange?.();
+      };
+    }
+
+
+    const chartBtn = node.querySelector('[data-chart-country]');
+    if (chartBtn) {
+      chartBtn.onclick = () => {
+        actions.setChartsMode('selected');
+        actions.setChartsWindowOpen(true);
+      };
+    }
+    const pinBtn = node.querySelector('[data-pin-country]');
+    if (pinBtn) {
+      pinBtn.onclick = () => {
+        actions.pinCountryToCharts(selected.cca3);
+        actions.setChartsMode('pinned');
+        actions.setChartsWindowOpen(true);
       };
     }
 

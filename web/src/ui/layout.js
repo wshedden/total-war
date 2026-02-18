@@ -13,12 +13,13 @@ export function buildLayout(root) {
   legend.hidden = true;
   const debug = el('div', 'debug');
   debug.hidden = true;
+  const floatingLayer = el('div', 'floating-layer');
   const dossier = el('aside', 'dossier');
 
-  mapWrap.append(canvas, tooltip, legend, debug);
+  mapWrap.append(canvas, tooltip, legend, debug, floatingLayer);
   main.append(mapWrap, dossier);
   app.append(topbar, main);
   root.append(app);
 
-  return { app, topbar, main, mapWrap, canvas, tooltip, legend, debug, dossier };
+  return { app, topbar, main, mapWrap, canvas, tooltip, legend, debug, floatingLayer, dossier };
 }
