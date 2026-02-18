@@ -3,6 +3,7 @@ import { initRelations, stepRelations } from './relationships.js';
 import { TURN_INFLUENCE_CONFIG, buildTopGdpCountrySet, computeInfluenceGain, applyInfluenceGain } from './influence.js';
 import { normalizeDynamicEntry, DEFAULT_INFLUENCE, DEFAULT_POLICY } from './policies.js';
 import { planActions, applyPlannedActions } from './diplomaticActions.js';
+import { createInitialRelationEffectsState, runRelationEffectsStage } from './relationEffects.js';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -90,11 +91,16 @@ export function createInitialRelations(seed, neighbours, countryIndex) {
   return initRelations(seed, neighbours, countryIndex);
 }
 
+export function createInitialRelationEffects() {
+  return createInitialRelationEffectsState();
+}
+
 export function simulateTurn(state) {
   const nextTurn = state.turn + 1;
   const nextDynamic = {};
   const events = [];
   const relationInputsByCountry = {};
+  const relationEffectsStage = runRelationEffectsStage(state.relationEffects, nextTurn);
 
   for (const [cca3, entry] of Object.entries(state.dynamic)) {
     const country = state.countryIndex[cca3];
@@ -132,7 +138,7 @@ export function simulateTurn(state) {
       POLICY_MILITARY_MAX_DELTA_PER_TURN
     );
 
-    const growth = 0.01 + drift + growthMod + growthPolicyMod;
+    const growth = 0.01 + drift + growthMod + growthPolicyMod + (relationEffectsStage.growthDeltaByCountry[cca3] ?? 0);
     const gdp = Math.max(1, entry.gdp * (1 + growth));
     const aiBias = entry.aiBias;
     const militaryPct = clamp(entry.militaryPct + militaryDelta, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT);
@@ -208,6 +214,7 @@ export function simulateTurn(state) {
     dynamic: diplomaticStep.dynamic,
     relations: diplomaticStep.relations,
     postureByCountry: relStep.postureByCountry,
+    relationEffects: diplomaticStep.relationEffects ?? relationEffectsStage.relationEffects,
     queuedPlayerAction: null,
     events: [...diplomaticStep.events, ...relStep.relationEvents, ...events, ...state.events].slice(0, 80)
   };

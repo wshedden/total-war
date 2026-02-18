@@ -6,7 +6,7 @@ import { renderTooltip } from './ui/tooltip.js';
 import { renderLegend } from './ui/overlays.js';
 import { renderDebug } from './ui/debug.js';
 import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } from './ui/saveLoad.js';
-import { createStore, createInitialSimState, createInitialRelations } from './state/store.js';
+import { createStore, createInitialSimState, createInitialRelations, createInitialRelationEffects } from './state/store.js';
 import { createActions } from './state/actions.js';
 import { selectActiveMetricRange } from './state/metricRange.js';
 import { selectNextTurnGainHint } from './state/selectors.js';
@@ -65,7 +65,8 @@ const store = createStore({
   dynamic: createInitialSimState(countryIndex),
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
-  postureByCountry: {}
+  postureByCountry: {},
+  relationEffects: createInitialRelationEffects()
 });
 const actions = createActions(store);
 const controls = renderTopbar(ui.topbar, actions);

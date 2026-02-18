@@ -1,4 +1,5 @@
-import { getEdge, setEdge } from './relationships.js';
+import { getEdge, setEdge, getSymmetricEdgeValue } from './relationships.js';
+import { addGuaranteeEffect, addSanctionEffect, hydrateRelationEffectsState, updateTradeEffect } from './relationEffects.js';
 
 const MAX_INFLUENCE = 100;
 
@@ -106,6 +107,10 @@ export const ACTION_DEFINITIONS = Object.freeze({
       if (!link.ok) return link;
       if (edge.rel < 20) return { ok: false, reason: 'relations-too-low-to-guarantee' };
       if (edge.trust < 35) return { ok: false, reason: 'trust-too-low-to-guarantee' };
+      const existing = getSymmetricEdgeValue(state.relationEffects?.guaranteesByEdge, actor, target) ?? [];
+      if (existing.some((item) => item?.actor === actor && item?.target === target && (item?.expiryTurn ?? 0) > state.turn)) {
+        return { ok: false, reason: 'guarantee-already-active' };
+      }
       return { ok: true };
     },
     apply(edge) {
@@ -227,6 +232,7 @@ export function planActions(state) {
 
 export function applyPlannedActions(state, plannedActions = []) {
   const nextDynamic = {};
+  const nextRelationEffects = hydrateRelationEffectsState(state.relationEffects);
   for (const [cca3, entry] of Object.entries(state.dynamic ?? {})) {
     nextDynamic[cca3] = {
       ...entry,
@@ -269,6 +275,21 @@ export function applyPlannedActions(state, plannedActions = []) {
 
     setEdge(nextRelations, action.actor, action.target, updatedEdge);
 
+    if (action.type === 'guarantee') {
+      addGuaranteeEffect(nextRelationEffects, action.actor, action.target, state.turn + 8);
+    }
+    if (action.type === 'sanction') {
+      addSanctionEffect(nextRelationEffects, action.actor, action.target, state.turn + 6, -0.0015, -0.006);
+    }
+    if (action.type === 'offerTradeDeal') {
+      const tradeState = getSymmetricEdgeValue(nextRelationEffects.tradeByEdge, action.actor, action.target) ?? {};
+      const level = Math.min(5, (tradeState.level ?? 0) + 1);
+      updateTradeEffect(nextRelationEffects, action.actor, action.target, {
+        level,
+        buffExpiryTurn: state.turn + 5
+      });
+    }
+
     const actorEntry = nextDynamic[action.actor];
     actorEntry.influence = clamp((actorEntry.influence ?? 0) - def.cost, 0, MAX_INFLUENCE);
     actorEntry.actionUsedTurn = state.turn;
@@ -288,6 +309,7 @@ export function applyPlannedActions(state, plannedActions = []) {
   return {
     dynamic: nextDynamic,
     relations: nextRelations,
-    events: actionEvents
+    events: actionEvents,
+    relationEffects: nextRelationEffects
   };
 }
