@@ -422,7 +422,7 @@ function relationCheck(edge) {
 var ACTION_DEFINITIONS = Object.freeze({
   improveRelations: {
     type: "improveRelations",
-    cost: 6,
+    cost: 5,
     cooldown: 2,
     priority: 2,
     check(state, actor, target) {
@@ -789,9 +789,9 @@ function formatInfluenceHint(influenceHint) {
   if (influenceHint.reasons.topGdpPercentile) reasons.push("top GDP");
   return `+${influenceHint.gain} next turn (${reasons.join(", ") || "none"})`;
 }
-function reasonLabel(reason, cooldownTurns = 0) {
+function reasonLabel(reason, cooldownTurns = 0, influence = 0, cost = 0) {
   if (reason === "actor-already-used-action-this-turn") return "Action already used this turn.";
-  if (reason === "insufficient-influence") return "Insufficient influence.";
+  if (reason === "insufficient-influence") return `Need ${cost} influence, have ${influence}.`;
   if (reason === "action-on-cooldown") return `On cooldown (${cooldownTurns} turn${cooldownTurns === 1 ? "" : "s"} remaining).`;
   if (!reason) return "";
   return `Precondition failed: ${reason.replaceAll("-", " ")}.`;
@@ -810,7 +810,32 @@ function getActionUiState(state, actor, target, type) {
     queued: false
   };
 }
-function renderDossier(node, state, actions2) {
+function buildDiplomaticButtons(state, actorCode, targetCode, influence) {
+  if (!targetCode) return '<div class="events">No land neighbours in this dataset.</div>';
+  return Object.values(ACTION_DEFINITIONS).map((definition) => {
+    const uiState = getActionUiState(state, actorCode, targetCode, definition.type);
+    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns, influence, definition.cost);
+    return `
+      <div class="dip-action-row">
+        <button
+          class="dip-action"
+          type="button"
+          data-action-type="${definition.type}"
+          ${uiState.disabled ? "disabled" : ""}
+          title="Influence cost: ${definition.cost}"
+        >
+          ${definition.type}${uiState.queued ? " (Queued)" : ""}
+          <span class="dip-cost">-${definition.cost} inf</span>
+        </button>
+        <div class="dip-action-meta">
+          ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
+          ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+function renderDossier(node, state, actions2, onUiStateChange = null) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
     const markup2 = "<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>";
@@ -828,28 +853,7 @@ function renderDossier(node, state, actions2) {
   const policy = dyn.policy ?? {};
   const activeNeighbour = neighbours2.find((item) => item.code === node.__diplomacyTarget) ?? neighbours2[0] ?? null;
   if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
-  const diplomaticButtons = activeNeighbour ? Object.values(ACTION_DEFINITIONS).map((definition) => {
-    const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
-    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns);
-    return `
-        <div class="dip-action-row">
-          <button
-            class="dip-action"
-            type="button"
-            data-action-type="${definition.type}"
-            ${uiState.disabled ? "disabled" : ""}
-            title="Influence cost: ${definition.cost}"
-          >
-            ${definition.type}${uiState.queued ? " (Queued)" : ""}
-            <span class="dip-cost">-${definition.cost} inf</span>
-          </button>
-          <div class="dip-action-meta">
-            ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
-            ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
-          </div>
-        </div>
-      `;
-  }).join("") : '<div class="events">No land neighbours in this dataset.</div>';
+  const diplomaticButtons = buildDiplomaticButtons(state, selected.cca3, activeNeighbour?.code, dyn.influence);
   const markup = `
     <h2>${selected.name}</h2>
     <p>${selected.officialName}</p>
@@ -857,12 +861,12 @@ function renderDossier(node, state, actions2) {
     <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
     <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
-    <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
-    <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
-    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
-    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
-    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
-    <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
+    <div class="metric"><span>GDP (sim)</span><strong data-dossier-gdp>${fmtCompact(dyn.gdp)}</strong></div>
+    <div class="metric"><span>Military % GDP</span><strong data-dossier-military>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Stability</span><strong data-dossier-stability>${fmtPercent(dyn.stability)}</strong></div>
+    <div class="metric"><span>Influence</span><strong data-dossier-influence>${fmtCompact(dyn.influence)}</strong></div>
+    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
+    <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
 
     <h3>Policy controls</h3>
     <div class="policy-controls">
@@ -895,8 +899,8 @@ function renderDossier(node, state, actions2) {
     <div class="dip-targets">
       ${neighbours2.map((item) => `<button type="button" class="dip-target ${activeNeighbour?.code === item.code ? "active" : ""}" data-target="${item.code}">${item.code}</button>`).join("") || '<div class="events">No valid targets.</div>'}
     </div>
-    ${activeNeighbour ? `<div class="dip-target-name">Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ""}
-    <div class="dip-actions">${diplomaticButtons}</div>
+    ${activeNeighbour ? `<div class="dip-target-name" data-dossier-target-name>Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ""}
+    <div class="dip-actions" data-dossier-actions>${diplomaticButtons}</div>
 
     <h3>Neighbours</h3>
     <div class="neighbour-head">
@@ -925,6 +929,7 @@ function renderDossier(node, state, actions2) {
       sortSelect.onchange = (event) => {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = "";
+        onUiStateChange?.();
       };
     }
     node.querySelectorAll("[data-policy-field]").forEach((input) => {
@@ -945,6 +950,7 @@ function renderDossier(node, state, actions2) {
       btn.onclick = () => {
         node.__diplomacyTarget = btn.getAttribute("data-target");
         node.__lastMarkup = "";
+        onUiStateChange?.();
       };
     });
     node.querySelectorAll("[data-action-type]").forEach((btn) => {
@@ -956,16 +962,51 @@ function renderDossier(node, state, actions2) {
   }
   node.classList.toggle("open", state.dossierOpen);
 }
-function updateDossierLiveTelemetry(node, state) {
+function updateDossierLiveTelemetry(node, state, actions2 = null) {
   const selectedCode = state.selected;
   if (!selectedCode || !node.querySelector("[data-dossier-events]")) return;
   const turnValue = node.querySelector("[data-dossier-turn]");
   if (turnValue) turnValue.textContent = String(state.turn);
   const selected = state.countryIndex[selectedCode];
   if (!selected) return;
+  const dyn = state.dynamic[selectedCode];
+  if (dyn) {
+    const influenceHint = selectNextTurnGainHint(state, selectedCode);
+    const gdpValue = node.querySelector("[data-dossier-gdp]");
+    if (gdpValue) gdpValue.textContent = fmtCompact(dyn.gdp);
+    const militaryValue = node.querySelector("[data-dossier-military]");
+    if (militaryValue) militaryValue.textContent = fmtPercent(dyn.militaryPct);
+    const stabilityValue = node.querySelector("[data-dossier-stability]");
+    if (stabilityValue) stabilityValue.textContent = fmtPercent(dyn.stability);
+    const influenceValue = node.querySelector("[data-dossier-influence]");
+    if (influenceValue) influenceValue.textContent = fmtCompact(dyn.influence);
+    const hintValue = node.querySelector("[data-dossier-influence-hint]");
+    if (hintValue) hintValue.textContent = formatInfluenceHint(influenceHint);
+    const powerValue = node.querySelector("[data-dossier-power]");
+    if (powerValue) powerValue.textContent = fmtCompact(dyn.power);
+  }
   const neighboursNode = node.querySelector("[data-dossier-neighbours]");
+  const neighbours2 = sortNeighbours(selected, state, node.__sortMode || "worst-relationship");
+  const activeNeighbour = neighbours2.find((item) => item.code === node.__diplomacyTarget) ?? neighbours2[0] ?? null;
+  if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
+  const targetNameNode = node.querySelector("[data-dossier-target-name]");
+  if (targetNameNode && activeNeighbour) {
+    targetNameNode.textContent = `Target: ${activeNeighbour.name} (${activeNeighbour.code})`;
+  }
+  const actionsNode = node.querySelector("[data-dossier-actions]");
+  if (actionsNode) {
+    const influence = state.dynamic?.[selectedCode]?.influence ?? 0;
+    actionsNode.innerHTML = buildDiplomaticButtons(state, selectedCode, activeNeighbour?.code, influence);
+    if (actions2) {
+      actionsNode.querySelectorAll("[data-action-type]").forEach((btn) => {
+        btn.onclick = () => {
+          if (!node.__diplomacyTarget) return;
+          actions2.queuePlayerDiplomaticAction(btn.getAttribute("data-action-type"), node.__diplomacyTarget, selectedCode);
+        };
+      });
+    }
+  }
   if (neighboursNode) {
-    const neighbours2 = sortNeighbours(selected, state, node.__sortMode || "worst-relationship");
     neighboursNode.innerHTML = neighbours2.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
@@ -3665,26 +3706,14 @@ function getTooltipInputs(state) {
 function getDossierStructuralInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
-  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
   const policy = dyn?.policy;
-  const selectedCooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : "";
-  const queuedAction = state.queuedPlayerAction ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}` : "";
   return {
     selected,
     dossierOpen: state.dossierOpen,
-    gdp: dyn?.gdp,
-    militaryPct: dyn?.militaryPct,
-    stability: dyn?.stability,
-    influence: dyn?.influence,
-    influenceGainHint: influenceHint?.gain,
-    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
     policyMilitaryTarget: policy?.milTargetPct,
     policyGrowthFocus: policy?.growthFocus,
     policyStabilityFocus: policy?.stabilityFocus,
     policyStance: policy?.stance,
-    actionUsedTurn: dyn?.actionUsedTurn,
-    cooldowns: selectedCooldowns,
-    queuedAction,
     diplomacyTarget: ui.dossier.__diplomacyTarget ?? "",
     sortMode: ui.dossier.__sortMode ?? "worst-relationship"
   };
@@ -3693,9 +3722,22 @@ function getDossierTelemetryInputs(state) {
   const selected = state.selected;
   const eventSlice = selected ? state.events.filter((e) => e.cca3 === selected || e.secondary === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}:${e.secondary ?? ""}`).join("|") : "";
   const neighbourSlice = selected ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}/${state.relations?.[selected]?.[n]?.trust ?? 50}`).join("|") : "";
+  const dyn = selected ? state.dynamic[selected] : null;
+  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
+  const cooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : "";
+  const queuedAction = state.queuedPlayerAction ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}` : "";
   return {
     selected,
     turn: state.turn,
+    gdp: dyn?.gdp,
+    militaryPct: dyn?.militaryPct,
+    stability: dyn?.stability,
+    influence: dyn?.influence,
+    power: dyn?.power,
+    influenceGainHint: influenceHint?.gain,
+    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
+    cooldowns,
+    queuedAction,
     eventSlice,
     neighbourSlice
   };
@@ -3826,13 +3868,15 @@ function drawNow() {
   }
   const dossierStructuralInputs = getDossierStructuralInputs(state);
   if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
-    renderDossier(ui.dossier, state, actions);
+    renderDossier(ui.dossier, state, actions, () => {
+      dirty = true;
+    });
     prevDossierStructuralInputs = dossierStructuralInputs;
     prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
   } else {
     const dossierTelemetryInputs = getDossierTelemetryInputs(state);
     if (!shallowEqual(prevDossierTelemetryInputs, dossierTelemetryInputs)) {
-      updateDossierLiveTelemetry(ui.dossier, state);
+      updateDossierLiveTelemetry(ui.dossier, state, actions);
       prevDossierTelemetryInputs = dossierTelemetryInputs;
     }
   }

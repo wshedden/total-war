@@ -120,28 +120,14 @@ function getTooltipInputs(state) {
 function getDossierStructuralInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
-  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
   const policy = dyn?.policy;
-  const selectedCooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : '';
-  const queuedAction = state.queuedPlayerAction
-    ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}`
-    : '';
   return {
     selected,
     dossierOpen: state.dossierOpen,
-    gdp: dyn?.gdp,
-    militaryPct: dyn?.militaryPct,
-    stability: dyn?.stability,
-    influence: dyn?.influence,
-    influenceGainHint: influenceHint?.gain,
-    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
     policyMilitaryTarget: policy?.milTargetPct,
     policyGrowthFocus: policy?.growthFocus,
     policyStabilityFocus: policy?.stabilityFocus,
     policyStance: policy?.stance,
-    actionUsedTurn: dyn?.actionUsedTurn,
-    cooldowns: selectedCooldowns,
-    queuedAction,
     diplomacyTarget: ui.dossier.__diplomacyTarget ?? '',
     sortMode: ui.dossier.__sortMode ?? 'worst-relationship'
   };
@@ -162,9 +148,24 @@ function getDossierTelemetryInputs(state) {
       .map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}/${state.relations?.[selected]?.[n]?.trust ?? 50}`)
       .join('|')
     : '';
+  const dyn = selected ? state.dynamic[selected] : null;
+  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
+  const cooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : '';
+  const queuedAction = state.queuedPlayerAction
+    ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}`
+    : '';
   return {
     selected,
     turn: state.turn,
+    gdp: dyn?.gdp,
+    militaryPct: dyn?.militaryPct,
+    stability: dyn?.stability,
+    influence: dyn?.influence,
+    power: dyn?.power,
+    influenceGainHint: influenceHint?.gain,
+    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
+    cooldowns,
+    queuedAction,
     eventSlice,
     neighbourSlice
   };
@@ -290,13 +291,15 @@ function drawNow() {
 
   const dossierStructuralInputs = getDossierStructuralInputs(state);
   if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
-    renderDossier(ui.dossier, state, actions);
+    renderDossier(ui.dossier, state, actions, () => {
+      dirty = true;
+    });
     prevDossierStructuralInputs = dossierStructuralInputs;
     prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
   } else {
     const dossierTelemetryInputs = getDossierTelemetryInputs(state);
     if (!shallowEqual(prevDossierTelemetryInputs, dossierTelemetryInputs)) {
-      updateDossierLiveTelemetry(ui.dossier, state);
+      updateDossierLiveTelemetry(ui.dossier, state, actions);
       prevDossierTelemetryInputs = dossierTelemetryInputs;
     }
   }

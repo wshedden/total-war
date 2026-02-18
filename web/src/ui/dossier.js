@@ -84,7 +84,33 @@ function getActionUiState(state, actor, target, type) {
   };
 }
 
-export function renderDossier(node, state, actions) {
+function buildDiplomaticButtons(state, actorCode, targetCode, influence) {
+  if (!targetCode) return '<div class="events">No land neighbours in this dataset.</div>';
+  return Object.values(ACTION_DEFINITIONS).map((definition) => {
+    const uiState = getActionUiState(state, actorCode, targetCode, definition.type);
+    const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns, influence, definition.cost);
+    return `
+      <div class="dip-action-row">
+        <button
+          class="dip-action"
+          type="button"
+          data-action-type="${definition.type}"
+          ${uiState.disabled ? 'disabled' : ''}
+          title="Influence cost: ${definition.cost}"
+        >
+          ${definition.type}${uiState.queued ? ' (Queued)' : ''}
+          <span class="dip-cost">-${definition.cost} inf</span>
+        </button>
+        <div class="dip-action-meta">
+          ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
+          ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+export function renderDossier(node, state, actions, onUiStateChange = null) {
   const selected = state.selected ? state.countryIndex[state.selected] : null;
   if (!selected) {
     const markup = '<h2>Country dossier</h2><p>Select a country to inspect key indicators.</p>';
@@ -105,30 +131,7 @@ export function renderDossier(node, state, actions) {
   const activeNeighbour = neighbours.find((item) => item.code === node.__diplomacyTarget) ?? neighbours[0] ?? null;
   if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
 
-  const diplomaticButtons = activeNeighbour
-    ? Object.values(ACTION_DEFINITIONS).map((definition) => {
-      const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
-      const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns, dyn.influence, definition.cost);
-      return `
-        <div class="dip-action-row">
-          <button
-            class="dip-action"
-            type="button"
-            data-action-type="${definition.type}"
-            ${uiState.disabled ? 'disabled' : ''}
-            title="Influence cost: ${definition.cost}"
-          >
-            ${definition.type}${uiState.queued ? ' (Queued)' : ''}
-            <span class="dip-cost">-${definition.cost} inf</span>
-          </button>
-          <div class="dip-action-meta">
-            ${uiState.cooldownTurns > 0 ? `<span class="dip-cooldown">Cooldown: ${uiState.cooldownTurns}t</span>` : '<span class="dip-cooldown dip-cooldown-ready">Ready</span>'}
-            ${uiState.disabled ? `<span class="dip-disabled-reason">${disabledReason}</span>` : '<span class="dip-disabled-reason dip-disabled-reason-ready">Available this turn.</span>'}
-          </div>
-        </div>
-      `;
-    }).join('')
-    : '<div class="events">No land neighbours in this dataset.</div>';
+  const diplomaticButtons = buildDiplomaticButtons(state, selected.cca3, activeNeighbour?.code, dyn.influence);
 
   const markup = `
     <h2>${selected.name}</h2>
@@ -137,12 +140,12 @@ export function renderDossier(node, state, actions) {
     <div class="metric"><span>Code</span><strong>${selected.cca3}</strong></div>
     <div class="metric"><span>Region</span><strong>${selected.region}</strong></div>
     <div class="metric"><span>Population</span><strong>${fmtCompact(selected.population)}</strong></div>
-    <div class="metric"><span>GDP (sim)</span><strong>${fmtCompact(dyn.gdp)}</strong></div>
-    <div class="metric"><span>Military % GDP</span><strong>${fmtPercent(dyn.militaryPct)}</strong></div>
-    <div class="metric"><span>Stability</span><strong>${fmtPercent(dyn.stability)}</strong></div>
-    <div class="metric"><span>Influence</span><strong>${fmtCompact(dyn.influence)}</strong></div>
-    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong>${influenceHintText}</strong></div>
-    <div class="metric"><span>Power</span><strong>${fmtCompact(dyn.power)}</strong></div>
+    <div class="metric"><span>GDP (sim)</span><strong data-dossier-gdp>${fmtCompact(dyn.gdp)}</strong></div>
+    <div class="metric"><span>Military % GDP</span><strong data-dossier-military>${fmtPercent(dyn.militaryPct)}</strong></div>
+    <div class="metric"><span>Stability</span><strong data-dossier-stability>${fmtPercent(dyn.stability)}</strong></div>
+    <div class="metric"><span>Influence</span><strong data-dossier-influence>${fmtCompact(dyn.influence)}</strong></div>
+    <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
+    <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
 
     <h3>Policy controls</h3>
     <div class="policy-controls">
@@ -175,8 +178,8 @@ export function renderDossier(node, state, actions) {
     <div class="dip-targets">
       ${neighbours.map((item) => `<button type="button" class="dip-target ${activeNeighbour?.code === item.code ? 'active' : ''}" data-target="${item.code}">${item.code}</button>`).join('') || '<div class="events">No valid targets.</div>'}
     </div>
-    ${activeNeighbour ? `<div class="dip-target-name">Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ''}
-    <div class="dip-actions">${diplomaticButtons}</div>
+    ${activeNeighbour ? `<div class="dip-target-name" data-dossier-target-name>Target: ${activeNeighbour.name} (${activeNeighbour.code})</div>` : ''}
+    <div class="dip-actions" data-dossier-actions>${diplomaticButtons}</div>
 
     <h3>Neighbours</h3>
     <div class="neighbour-head">
@@ -207,6 +210,7 @@ export function renderDossier(node, state, actions) {
       sortSelect.onchange = (event) => {
         node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = '';
+        onUiStateChange?.();
       };
     }
 
@@ -230,6 +234,7 @@ export function renderDossier(node, state, actions) {
       btn.onclick = () => {
         node.__diplomacyTarget = btn.getAttribute('data-target');
         node.__lastMarkup = '';
+        onUiStateChange?.();
       };
     });
 
@@ -244,7 +249,7 @@ export function renderDossier(node, state, actions) {
   node.classList.toggle('open', state.dossierOpen);
 }
 
-export function updateDossierLiveTelemetry(node, state) {
+export function updateDossierLiveTelemetry(node, state, actions = null) {
   const selectedCode = state.selected;
   if (!selectedCode || !node.querySelector('[data-dossier-events]')) return;
 
@@ -254,9 +259,48 @@ export function updateDossierLiveTelemetry(node, state) {
   const selected = state.countryIndex[selectedCode];
   if (!selected) return;
 
+  const dyn = state.dynamic[selectedCode];
+  if (dyn) {
+    const influenceHint = selectNextTurnGainHint(state, selectedCode);
+    const gdpValue = node.querySelector('[data-dossier-gdp]');
+    if (gdpValue) gdpValue.textContent = fmtCompact(dyn.gdp);
+    const militaryValue = node.querySelector('[data-dossier-military]');
+    if (militaryValue) militaryValue.textContent = fmtPercent(dyn.militaryPct);
+    const stabilityValue = node.querySelector('[data-dossier-stability]');
+    if (stabilityValue) stabilityValue.textContent = fmtPercent(dyn.stability);
+    const influenceValue = node.querySelector('[data-dossier-influence]');
+    if (influenceValue) influenceValue.textContent = fmtCompact(dyn.influence);
+    const hintValue = node.querySelector('[data-dossier-influence-hint]');
+    if (hintValue) hintValue.textContent = formatInfluenceHint(influenceHint);
+    const powerValue = node.querySelector('[data-dossier-power]');
+    if (powerValue) powerValue.textContent = fmtCompact(dyn.power);
+  }
+
   const neighboursNode = node.querySelector('[data-dossier-neighbours]');
+  const neighbours = sortNeighbours(selected, state, node.__sortMode || 'worst-relationship');
+  const activeNeighbour = neighbours.find((item) => item.code === node.__diplomacyTarget) ?? neighbours[0] ?? null;
+  if (activeNeighbour) node.__diplomacyTarget = activeNeighbour.code;
+
+  const targetNameNode = node.querySelector('[data-dossier-target-name]');
+  if (targetNameNode && activeNeighbour) {
+    targetNameNode.textContent = `Target: ${activeNeighbour.name} (${activeNeighbour.code})`;
+  }
+
+  const actionsNode = node.querySelector('[data-dossier-actions]');
+  if (actionsNode) {
+    const influence = state.dynamic?.[selectedCode]?.influence ?? 0;
+    actionsNode.innerHTML = buildDiplomaticButtons(state, selectedCode, activeNeighbour?.code, influence);
+    if (actions) {
+      actionsNode.querySelectorAll('[data-action-type]').forEach((btn) => {
+        btn.onclick = () => {
+          if (!node.__diplomacyTarget) return;
+          actions.queuePlayerDiplomaticAction(btn.getAttribute('data-action-type'), node.__diplomacyTarget, selectedCode);
+        };
+      });
+    }
+  }
+
   if (neighboursNode) {
-    const neighbours = sortNeighbours(selected, state, node.__sortMode || 'worst-relationship');
     neighboursNode.innerHTML = neighbours.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
