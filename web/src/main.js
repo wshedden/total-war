@@ -59,6 +59,8 @@ renderer.resize();
 actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
 let dirty = true;
 let mouse = { x: 0, y: 0 };
+let latestHoverPointer = null;
+let hoverPickQueued = false;
 let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
 
@@ -82,9 +84,8 @@ window.addEventListener('mousemove', (e) => {
     actions.setCamera(constrainCamera({ ...drag.cam, x: drag.cam.x + dx, y: drag.cam.y + dy }, ui.canvas.clientWidth, ui.canvas.clientHeight));
     return;
   }
-  const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 4);
-  debugInfo.candidates = hit.candidates;
-  actions.setHover(hit.cca3);
+  latestHoverPointer = { x: e.offsetX, y: e.offsetY };
+  hoverPickQueued = true;
 });
 ui.canvas.addEventListener('click', (e) => {
   const hit = pickCountry(renderer.ctx, renderer.getPickCache(), store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight, e.offsetX, e.offsetY, 6);
@@ -117,6 +118,21 @@ function frame(now) {
   if (!state.paused) {
     acc += dt * state.speed;
     while (acc >= 1) { actions.stepTurn(); acc -= 1; }
+  }
+  if (hoverPickQueued && latestHoverPointer) {
+    const hit = pickCountry(
+      renderer.ctx,
+      renderer.getPickCache(),
+      state.camera,
+      ui.canvas.clientWidth,
+      ui.canvas.clientHeight,
+      latestHoverPointer.x,
+      latestHoverPointer.y,
+      4
+    );
+    debugInfo.candidates = hit.candidates;
+    actions.setHover(hit.cca3);
+    hoverPickQueued = false;
   }
   if (dirty) drawNow();
   requestAnimationFrame(frame);
