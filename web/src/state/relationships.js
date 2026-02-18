@@ -13,6 +13,11 @@ function toSortedEdge(a, b) {
   return a < b ? [a, b] : [b, a];
 }
 
+export function edgeKey(a, b) {
+  const [x, y] = toSortedEdge(a, b);
+  return pairKey(x, y);
+}
+
 export function createStableEdges(neighbours = {}) {
   const edges = [];
   for (const a of Object.keys(neighbours).sort()) {
@@ -52,6 +57,19 @@ export function setEdge(relations, a, b, edge) {
   };
   relations[x][y] = frozen;
   relations[y][x] = frozen;
+}
+
+export function getSymmetricEdgeValue(edgeMap, a, b) {
+  return edgeMap?.[edgeKey(a, b)] ?? null;
+}
+
+export function setSymmetricEdgeValue(edgeMap, a, b, value) {
+  const key = edgeKey(a, b);
+  if (value == null) {
+    delete edgeMap[key];
+    return;
+  }
+  edgeMap[key] = value;
 }
 
 function gaussianish(rng) {
@@ -99,7 +117,7 @@ function classifyPosture(edge) {
   return edge.rel >= 40 && edge.tension < 40 ? 'Friendly' : 'Wary';
 }
 
-export function stepRelations({ turn, seed, relations, edges, dynamic, events }) {
+export function stepRelations({ turn, seed, relations, edges, dynamic, events, relationInputsByCountry = {} }) {
   const nextRelations = {};
   const postureByCountry = {};
   const nextEvents = [];
@@ -141,6 +159,12 @@ export function stepRelations({ turn, seed, relations, edges, dynamic, events })
       + (rel > 25 && tension < 35 ? 1 : 0)
       - (tension > 70 ? 1 : 0)
       - (rel < -35 ? 1 : 0);
+
+    const inputA = relationInputsByCountry[a] ?? {};
+    const inputB = relationInputsByCountry[b] ?? {};
+    relDelta += (inputA.relDelta ?? 0) + (inputB.relDelta ?? 0);
+    tensionDelta += (inputA.tensionDelta ?? 0) + (inputB.tensionDelta ?? 0);
+    trustDelta += (inputA.trustDelta ?? 0) + (inputB.trustDelta ?? 0);
 
     const pairRand = mulberry32(hashString(`evt:${seed}:${turn}:${pairKey(a, b)}`));
     const roll = pairRand();

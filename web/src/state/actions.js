@@ -1,5 +1,186 @@
-import { simulateTurn, createInitialRelations, createInitialSimState } from './store.js';
-import { hydrateRelations } from './relationships.js';
+import { simulateTurn, createInitialRelations, createInitialSimState, createInitialRelationEffects } from './store.js';
+import { edgeKey, hydrateRelations } from './relationships.js';
+import { clampActionUsage, clampInfluence, clampPolicy, normalizeDynamicState } from './policies.js';
+import { hydrateRelationEffectsState } from './relationEffects.js';
+import { ACTION_DEFINITIONS, checkActionPreconditions } from './diplomaticActions.js';
+
+function toObject(value, fallback = {}) {
+  return value != null && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
+}
+
+function toFiniteNumber(value, fallback) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function toInteger(value, fallback) {
+  return Math.round(toFiniteNumber(value, fallback));
+}
+
+function isKnownCountry(countryIndex, cca3) {
+  return typeof cca3 === 'string' && Object.prototype.hasOwnProperty.call(countryIndex, cca3);
+}
+
+function normalizeCountrySparseMap(raw, countryIndex, mapValue) {
+  const source = toObject(raw);
+  const entries = Object.entries(source)
+    .filter(([cca3]) => isKnownCountry(countryIndex, cca3))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([cca3, value]) => [cca3, mapValue(value)]);
+  return Object.fromEntries(entries);
+}
+
+function normalizeEffectsList(rawList, normalizeItem) {
+  if (!Array.isArray(rawList)) return [];
+  const list = rawList
+    .map((item) => normalizeItem(toObject(item, null)))
+    .filter(Boolean);
+  return list;
+}
+
+function normalizeRelationEffects(rawRelationEffects) {
+  const source = toObject(rawRelationEffects);
+
+  const guaranteesByEdge = Object.fromEntries(
+    Object.entries(toObject(source.guaranteesByEdge))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, guarantees]) => [key, normalizeEffectsList(guarantees, (item) => {
+        if (!item?.actor || !item?.target) return null;
+        return {
+          actor: item.actor,
+          target: item.target,
+          expiryTurn: Math.max(0, toInteger(item.expiryTurn, 0))
+        };
+      })])
+      .filter(([, guarantees]) => guarantees.length)
+  );
+
+  const sanctionsByEdge = Object.fromEntries(
+    Object.entries(toObject(source.sanctionsByEdge))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, sanctions]) => [key, normalizeEffectsList(sanctions, (item) => {
+        if (!item?.actor || !item?.target) return null;
+        return {
+          actor: item.actor,
+          target: item.target,
+          expiryTurn: Math.max(0, toInteger(item.expiryTurn, 0)),
+          growthPenaltyActor: toFiniteNumber(item.growthPenaltyActor, 0),
+          growthPenaltyTarget: toFiniteNumber(item.growthPenaltyTarget, 0)
+        };
+      })])
+      .filter(([, sanctions]) => sanctions.length)
+  );
+
+  const tradeByEdge = Object.fromEntries(
+    Object.entries(toObject(source.tradeByEdge))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, trade]) => {
+        const next = {};
+        if (Number.isFinite(Number(trade?.level))) next.level = Math.max(0, toInteger(trade.level, 0));
+        if (Number.isFinite(Number(trade?.buffExpiryTurn))) next.buffExpiryTurn = Math.max(0, toInteger(trade.buffExpiryTurn, 0));
+        return [key, next];
+      })
+      .filter(([, trade]) => Object.keys(trade).length)
+  );
+
+  return { guaranteesByEdge, sanctionsByEdge, tradeByEdge };
+}
+
+function mergeCountryDynamicState(baseDynamic, countryInfluence, countryPolicy, countryActionState) {
+  const merged = {};
+  for (const [cca3, entry] of Object.entries(baseDynamic)) {
+    const actionState = clampActionUsage(countryActionState?.[cca3] ?? entry);
+    merged[cca3] = {
+      ...entry,
+      influence: clampInfluence(countryInfluence?.[cca3] ?? entry.influence),
+      policy: clampPolicy(countryPolicy?.[cca3] ?? entry.policy),
+      actionUsedTurn: actionState.actionUsedTurn,
+      cooldowns: actionState.cooldowns
+    };
+  }
+  return merged;
+}
+
+function normalizeRelationEdgeExtras(raw, validEdges) {
+  const source = toObject(raw);
+  const sparse = {};
+  const validSet = new Set(validEdges.map(([a, b]) => edgeKey(a, b)));
+  for (const [key, extras] of Object.entries(source).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!validSet.has(key)) continue;
+    if (extras == null || typeof extras !== 'object' || Array.isArray(extras)) continue;
+    if (!Object.keys(extras).length) continue;
+    sparse[key] = { ...extras };
+  }
+  return sparse;
+}
+
+function mergeLegacyRelationEdgeExtras(rawRelationEdges = [], rawEdgeExtras = {}) {
+  const merged = { ...toObject(rawEdgeExtras) };
+  for (const row of rawRelationEdges) {
+    if (!Array.isArray(row) || row.length < 7) continue;
+    const [a, b, , , , , extras] = row;
+    if (!a || !b || extras == null || typeof extras !== 'object' || Array.isArray(extras) || !Object.keys(extras).length) continue;
+    merged[edgeKey(a, b)] = extras;
+  }
+  return merged;
+}
+
+function parseSnapshot(snapshot, baseState) {
+  const safeSnapshot = toObject(snapshot, null);
+  if (!safeSnapshot) return null;
+
+  const rawRelationEdges = Array.isArray(safeSnapshot.relationsEdges)
+    ? safeSnapshot.relationsEdges
+    : Array.isArray(safeSnapshot.relationEdges) ? safeSnapshot.relationEdges : [];
+  const hydrated = hydrateRelations(baseState.neighbours, rawRelationEdges);
+
+  const dynamicBase = normalizeDynamicState(safeSnapshot.dynamic, baseState.countryIndex);
+  const countryInfluence = normalizeCountrySparseMap(
+    safeSnapshot.countryInfluence ?? safeSnapshot.influenceByCountry,
+    baseState.countryIndex,
+    (value) => clampInfluence(value)
+  );
+  const countryPolicy = normalizeCountrySparseMap(
+    safeSnapshot.countryPolicy ?? safeSnapshot.policyByCountry,
+    baseState.countryIndex,
+    (value) => clampPolicy(toObject(value))
+  );
+  const countryActionState = normalizeCountrySparseMap(
+    safeSnapshot.countryActionState ?? safeSnapshot.actionUsageByCountry,
+    baseState.countryIndex,
+    (value) => clampActionUsage(toObject(value))
+  );
+
+  const mergedEffects = {
+    ...toObject(safeSnapshot.pacts),
+    ...toObject(safeSnapshot.relationEffects)
+  };
+  const relationEffects = hydrateRelationEffectsState(normalizeRelationEffects(mergedEffects));
+
+  const relationEdgeExtras = normalizeRelationEdgeExtras(
+    mergeLegacyRelationEdgeExtras(rawRelationEdges, safeSnapshot.relationEdgeExtras),
+    hydrated.edges
+  );
+
+  return {
+    seed: safeSnapshot.seed ?? baseState.seed,
+    turn: Math.max(0, toInteger(safeSnapshot.turn, baseState.turn)),
+    paused: typeof safeSnapshot.paused === 'boolean' ? safeSnapshot.paused : baseState.paused,
+    speed: toFiniteNumber(safeSnapshot.speed, baseState.speed),
+    camera: toObject(safeSnapshot.camera, baseState.camera),
+    selected: typeof safeSnapshot.selected === 'string' ? safeSnapshot.selected : baseState.selected,
+    overlay: safeSnapshot.overlay ?? baseState.overlay,
+    metric: safeSnapshot.metric ?? baseState.metric,
+    events: Array.isArray(safeSnapshot.events) ? safeSnapshot.events : [],
+    dynamic: mergeCountryDynamicState(dynamicBase, countryInfluence, countryPolicy, countryActionState),
+    relations: hydrated.relations,
+    relationEdges: hydrated.edges,
+    postureByCountry: toObject(safeSnapshot.postureByCountry),
+    relationEffects,
+    relationEdgeExtras,
+    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null)
+  };
+}
 
 export function createActions(store) {
   return {
@@ -44,19 +225,69 @@ export function createActions(store) {
           dynamic: createInitialSimState(s.countryIndex),
           relations,
           relationEdges: edges,
-          postureByCountry: {}
+          postureByCountry: {},
+          relationEffects: createInitialRelationEffects(),
+          queuedPlayerAction: null
         };
       });
     },
-    loadState(snapshot) {
+    setPolicyField(field, value, cca3 = null) {
       store.setState((s) => {
-        const hydrated = hydrateRelations(s.neighbours, snapshot.relationsEdges ?? []);
+        const actor = cca3 ?? s.selected;
+        if (!actor || !s.dynamic?.[actor]) return s;
+        if (!['milTargetPct', 'growthFocus', 'stabilityFocus', 'stance'].includes(field)) return s;
+        const entry = s.dynamic[actor];
+        const nextPolicy = clampPolicy({
+          ...(entry.policy ?? {}),
+          [field]: value
+        });
         return {
           ...s,
-          ...snapshot,
-          relations: hydrated.relations,
-          relationEdges: hydrated.edges,
-          postureByCountry: snapshot.postureByCountry ?? {}
+          dynamic: {
+            ...s.dynamic,
+            [actor]: {
+              ...entry,
+              policy: nextPolicy
+            }
+          }
+        };
+      });
+    },
+    queuePlayerDiplomaticAction(type, target, actor = null) {
+      store.setState((s) => {
+        const actionActor = actor ?? s.selected;
+        if (!actionActor || !target || !ACTION_DEFINITIONS[type]) return s;
+        const action = { actor: actionActor, target, type, source: 'player' };
+        const check = checkActionPreconditions(s, action);
+        if (!check.ok) return s;
+        return { ...s, queuedPlayerAction: action };
+      });
+    },
+    clearQueuedPlayerDiplomaticAction() {
+      store.setState((s) => (s.queuedPlayerAction ? { ...s, queuedPlayerAction: null } : s));
+    },
+    loadState(snapshot) {
+      store.setState((s) => {
+        const parsed = parseSnapshot(snapshot, s);
+        if (!parsed) return s;
+        return {
+          ...s,
+          seed: parsed.seed,
+          turn: parsed.turn,
+          paused: parsed.paused,
+          speed: parsed.speed,
+          camera: parsed.camera,
+          selected: parsed.selected,
+          overlay: parsed.overlay,
+          metric: parsed.metric,
+          events: parsed.events,
+          dynamic: parsed.dynamic,
+          relations: parsed.relations,
+          relationEdges: parsed.relationEdges,
+          postureByCountry: parsed.postureByCountry,
+          relationEffects: parsed.relationEffects,
+          relationEdgeExtras: parsed.relationEdgeExtras,
+          queuedPlayerAction: parsed.queuedPlayerAction
         };
       });
     }

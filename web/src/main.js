@@ -1,14 +1,15 @@
 import { buildLayout } from './ui/layout.js';
 import { renderTopbar } from './ui/topbar.js';
 import { wireSearch } from './ui/search.js';
-import { renderDossier } from './ui/dossier.js';
+import { renderDossier, updateDossierLiveTelemetry } from './ui/dossier.js';
 import { renderTooltip } from './ui/tooltip.js';
 import { renderLegend } from './ui/overlays.js';
 import { renderDebug } from './ui/debug.js';
 import { makeSnapshot, saveToLocal, loadFromLocal, exportJson, importJsonFile } from './ui/saveLoad.js';
-import { createStore, createInitialSimState, createInitialRelations } from './state/store.js';
+import { createStore, createInitialSimState, createInitialRelations, createInitialRelationEffects } from './state/store.js';
 import { createActions } from './state/actions.js';
 import { selectActiveMetricRange } from './state/metricRange.js';
+import { selectNextTurnGainHint } from './state/selectors.js';
 import { createRenderer } from './map/renderer.js';
 import { constrainCamera, fitCameraToFeature, zoomAtPoint } from './map/camera.js';
 import { pickCountry } from './map/picking.js';
@@ -64,7 +65,8 @@ const store = createStore({
   dynamic: createInitialSimState(countryIndex),
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
-  postureByCountry: {}
+  postureByCountry: {},
+  relationEffects: createInitialRelationEffects()
 });
 const actions = createActions(store);
 const controls = renderTopbar(ui.topbar, actions);
@@ -88,7 +90,8 @@ let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
 
 let prevTooltipInputs = null;
-let prevDossierInputs = null;
+let prevDossierStructuralInputs = null;
+let prevDossierTelemetryInputs = null;
 let prevLegendInputs = null;
 let prevDebugInputs = null;
 
@@ -114,20 +117,55 @@ function getTooltipInputs(state) {
   };
 }
 
-function getDossierInputs(state) {
+function getDossierStructuralInputs(state) {
   const selected = state.selected;
   const dyn = selected ? state.dynamic[selected] : null;
-  const eventSlice = selected
-    ? state.events.filter((e) => e.cca3 === selected).slice(0, 8).map((e) => `${e.turn}:${e.text}`).join('|')
-    : '';
-  const neighbourSlice = selected
-    ? getNeighbours(selected, state.neighbours).slice(0, 12).map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}`).join('|')
-    : '';
+  const policy = dyn?.policy;
   return {
     selected,
     dossierOpen: state.dossierOpen,
+    policyMilitaryTarget: policy?.milTargetPct,
+    policyGrowthFocus: policy?.growthFocus,
+    policyStabilityFocus: policy?.stabilityFocus,
+    policyStance: policy?.stance,
+    diplomacyTarget: ui.dossier.__diplomacyTarget ?? '',
+    sortMode: ui.dossier.__sortMode ?? 'worst-relationship'
+  };
+}
+
+function getDossierTelemetryInputs(state) {
+  const selected = state.selected;
+  const eventSlice = selected
+    ? state.events
+      .filter((e) => e.cca3 === selected || e.secondary === selected)
+      .slice(0, 8)
+      .map((e) => `${e.turn}:${e.text}:${e.secondary ?? ''}`)
+      .join('|')
+    : '';
+  const neighbourSlice = selected
+    ? getNeighbours(selected, state.neighbours)
+      .slice(0, 12)
+      .map((n) => `${n}:${state.relations?.[selected]?.[n]?.rel ?? 0}/${state.relations?.[selected]?.[n]?.tension ?? 0}/${state.relations?.[selected]?.[n]?.trust ?? 50}`)
+      .join('|')
+    : '';
+  const dyn = selected ? state.dynamic[selected] : null;
+  const influenceHint = selected ? selectNextTurnGainHint(state, selected) : null;
+  const cooldowns = selected ? JSON.stringify(dyn?.cooldowns ?? {}) : '';
+  const queuedAction = state.queuedPlayerAction
+    ? `${state.queuedPlayerAction.actor}:${state.queuedPlayerAction.target}:${state.queuedPlayerAction.type}`
+    : '';
+  return {
+    selected,
+    turn: state.turn,
     gdp: dyn?.gdp,
     militaryPct: dyn?.militaryPct,
+    stability: dyn?.stability,
+    influence: dyn?.influence,
+    power: dyn?.power,
+    influenceGainHint: influenceHint?.gain,
+    influenceHintTopGdp: influenceHint?.reasons?.topGdpPercentile,
+    cooldowns,
+    queuedAction,
     eventSlice,
     neighbourSlice
   };
@@ -251,10 +289,19 @@ function drawNow() {
     prevTooltipInputs = tooltipInputs;
   }
 
-  const dossierInputs = getDossierInputs(state);
-  if (!shallowEqual(prevDossierInputs, dossierInputs)) {
-    renderDossier(ui.dossier, state);
-    prevDossierInputs = dossierInputs;
+  const dossierStructuralInputs = getDossierStructuralInputs(state);
+  if (!shallowEqual(prevDossierStructuralInputs, dossierStructuralInputs)) {
+    renderDossier(ui.dossier, state, actions, () => {
+      dirty = true;
+    });
+    prevDossierStructuralInputs = dossierStructuralInputs;
+    prevDossierTelemetryInputs = getDossierTelemetryInputs(state);
+  } else {
+    const dossierTelemetryInputs = getDossierTelemetryInputs(state);
+    if (!shallowEqual(prevDossierTelemetryInputs, dossierTelemetryInputs)) {
+      updateDossierLiveTelemetry(ui.dossier, state, actions);
+      prevDossierTelemetryInputs = dossierTelemetryInputs;
+    }
   }
 
   const legendInputs = getLegendInputs(state);

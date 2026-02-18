@@ -1,9 +1,44 @@
 import { serializeRelations } from '../state/relationships.js';
 
 const KEY = 'total-war-v0-save';
+const SNAPSHOT_SCHEMA_VERSION = 2;
+
+function isNonEmptyObject(value) {
+  return value != null && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+
+function buildCountryFieldMap(dynamic = {}, pickField) {
+  const entries = Object.entries(dynamic)
+    .map(([cca3, entry]) => [cca3, pickField(entry)])
+    .filter(([, value]) => value != null)
+    .sort(([a], [b]) => a.localeCompare(b));
+  return Object.fromEntries(entries);
+}
+
+function collectSparseEdgeExtras(edges = [], relations = {}, relationEdgeExtras = {}) {
+  const sparse = {};
+  for (const [a, b] of edges) {
+    const edge = relations?.[a]?.[b];
+    const bakedExtras = edge?.extras;
+    const keyedExtras = relationEdgeExtras?.[`${a}|${b}`] ?? relationEdgeExtras?.[`${b}|${a}`];
+    const extras = isNonEmptyObject(bakedExtras) ? bakedExtras : keyedExtras;
+    if (!isNonEmptyObject(extras)) continue;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    sparse[key] = extras;
+  }
+  return sparse;
+}
 
 export function makeSnapshot(state) {
+  const countryInfluence = buildCountryFieldMap(state.dynamic, (entry) => entry?.influence ?? null);
+  const countryPolicy = buildCountryFieldMap(state.dynamic, (entry) => entry?.policy ?? null);
+  const countryActionState = buildCountryFieldMap(state.dynamic, (entry) => ({
+    actionUsedTurn: entry?.actionUsedTurn ?? null,
+    cooldowns: entry?.cooldowns ?? {}
+  }));
+
   return {
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     seed: state.seed,
     turn: state.turn,
     paused: state.paused,
@@ -13,9 +48,15 @@ export function makeSnapshot(state) {
     overlay: state.overlay,
     metric: state.metric,
     dynamic: state.dynamic,
+    countryInfluence,
+    countryPolicy,
+    countryActionState,
     events: state.events,
     postureByCountry: state.postureByCountry,
-    relationsEdges: serializeRelations(state.relationEdges, state.relations)
+    relationsEdges: serializeRelations(state.relationEdges, state.relations),
+    relationEffects: state.relationEffects,
+    pacts: state.relationEffects,
+    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras)
   };
 }
 
