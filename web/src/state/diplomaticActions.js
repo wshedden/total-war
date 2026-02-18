@@ -23,7 +23,7 @@ function relationCheck(edge) {
 export const ACTION_DEFINITIONS = Object.freeze({
   improveRelations: {
     type: 'improveRelations',
-    cost: 6,
+    cost: 5,
     cooldown: 2,
     priority: 2,
     check(state, actor, target) {

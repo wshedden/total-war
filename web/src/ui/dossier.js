@@ -60,9 +60,9 @@ function formatInfluenceHint(influenceHint) {
   return `+${influenceHint.gain} next turn (${reasons.join(', ') || 'none'})`;
 }
 
-function reasonLabel(reason, cooldownTurns = 0) {
+function reasonLabel(reason, cooldownTurns = 0, influence = 0, cost = 0) {
   if (reason === 'actor-already-used-action-this-turn') return 'Action already used this turn.';
-  if (reason === 'insufficient-influence') return 'Insufficient influence.';
+  if (reason === 'insufficient-influence') return `Need ${cost} influence, have ${influence}.`;
   if (reason === 'action-on-cooldown') return `On cooldown (${cooldownTurns} turn${cooldownTurns === 1 ? '' : 's'} remaining).`;
   if (!reason) return '';
   return `Precondition failed: ${reason.replaceAll('-', ' ')}.`;
@@ -108,7 +108,7 @@ export function renderDossier(node, state, actions) {
   const diplomaticButtons = activeNeighbour
     ? Object.values(ACTION_DEFINITIONS).map((definition) => {
       const uiState = getActionUiState(state, selected.cca3, activeNeighbour.code, definition.type);
-      const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns);
+      const disabledReason = reasonLabel(uiState.reason, uiState.cooldownTurns, dyn.influence, definition.cost);
       return `
         <div class="dip-action-row">
           <button
