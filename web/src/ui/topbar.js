@@ -13,7 +13,7 @@ export function renderTopbar(container, actions) {
   });
 
   const overlay = el('select');
-  overlay.innerHTML = '<option value="political">Political</option><option value="heatmap">Data Heatmap</option>';
+  overlay.innerHTML = '<option value="political">Political</option><option value="diplomacy">Diplomacy</option><option value="heatmap">Data Heatmap</option>';
   const metric = el('select');
   metric.innerHTML = '<option value="gdp">GDP</option><option value="gdpPerCapita">GDP per capita</option><option value="population">Population</option><option value="militaryPercentGdp">Military % GDP</option>';
 
