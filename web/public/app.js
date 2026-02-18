@@ -746,8 +746,8 @@ var STANCE_OPTIONS = [
 ];
 function relLabel(rel, tension) {
   if (rel <= -40 || tension >= 70) return "Hostile";
-  if (rel >= 40 && tension < 40) return "Friendly";
-  return "Wary";
+  if (rel >= -20 && rel <= 39 || tension >= 40 && tension <= 69) return "Wary";
+  return rel >= 40 && tension < 40 ? "Friendly" : "Wary";
 }
 function relBar(rel) {
   const pct = (rel + 100) / 200 * 100;
@@ -756,6 +756,14 @@ function relBar(rel) {
 function tensionBar(tension) {
   return `<div class="tense-bar" title="Border tension 0 to 100"><i style="width:${tension}%"></i></div>`;
 }
+function trustBar(trust) {
+  return `<div class="trust-bar" title="Trust 0 to 100"><i style="width:${trust}%"></i></div>`;
+}
+var NEIGHBOUR_SORT_MODES = [
+  { value: "worst-relationship", label: "worst relationship" },
+  { value: "highest-tension", label: "highest tension" },
+  { value: "alphabetical", label: "alphabetical" }
+];
 function sortNeighbours(selected, state, mode) {
   const items = (state.neighbours?.[selected.cca3] ?? []).map((code) => {
     const edge = state.relations?.[selected.cca3]?.[code] ?? { rel: 0, tension: 0, trust: 50 };
@@ -768,8 +776,9 @@ function sortNeighbours(selected, state, mode) {
       powerRatio: (state.dynamic?.[selected.cca3]?.power ?? 0) / Math.max(1, state.dynamic?.[code]?.power ?? 0)
     };
   });
-  if (mode === "name") items.sort((a, b) => a.name.localeCompare(b.name));
-  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.code.localeCompare(b.code));
+  if (mode === "alphabetical") items.sort((a, b) => a.name.localeCompare(b.name));
+  else if (mode === "highest-tension") items.sort((a, b) => b.tension - a.tension || a.rel - b.rel || a.name.localeCompare(b.name));
+  else items.sort((a, b) => a.rel - b.rel || b.tension - a.tension || a.name.localeCompare(b.name));
   return items;
 }
 function formatInfluenceHint(influenceHint) {
@@ -811,7 +820,7 @@ function renderDossier(node, state, actions2) {
     }
     return;
   }
-  if (!node.__sortMode) node.__sortMode = "negative";
+  if (!node.__sortMode) node.__sortMode = "worst-relationship";
   const neighbours2 = sortNeighbours(selected, state, node.__sortMode);
   const dyn = state.dynamic[selected.cca3];
   const influenceHint = selectNextTurnGainHint(state, selected.cca3);
@@ -889,13 +898,19 @@ function renderDossier(node, state, actions2) {
     <div class="dip-actions">${diplomaticButtons}</div>
 
     <h3>Neighbours</h3>
-    <div class="neighbour-head"><span>Sorted by ${node.__sortMode === "name" ? "name" : "worst relations"}</span><button class="neighbour-sort" type="button">Toggle sort</button></div>
+    <div class="neighbour-head">
+      <label for="neighbour-sort" class="neighbour-sort-label">Sort by</label>
+      <select id="neighbour-sort" class="neighbour-sort" data-neighbour-sort>
+        ${NEIGHBOUR_SORT_MODES.map((mode) => `<option value="${mode.value}" ${node.__sortMode === mode.value ? "selected" : ""}>${mode.label}</option>`).join("")}
+      </select>
+    </div>
     <div class="neighbours">${neighbours2.map((n) => `
       <div class="neighbour-row" title="Relationship and tension are deterministic border metrics.">
         <div class="neighbour-title"><strong>${n.code}</strong> ${n.name}</div>
         ${relBar(n.rel)}
         ${tensionBar(n.tension)}
-        <div class="neighbour-meta"><span>${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
+        ${trustBar(n.trust)}
+        <div class="neighbour-meta"><span>Posture: ${relLabel(n.rel, n.tension)}</span><span>Rel ${n.rel}</span><span>Tension ${n.tension}</span><span>Trust ${n.trust}</span><span>Power ${n.powerRatio.toFixed(2)}x</span></div>
       </div>
     `).join("") || '<div class="events">No land neighbours in this dataset.</div>'}</div>
     <h3>Recent events</h3>
@@ -904,10 +919,10 @@ function renderDossier(node, state, actions2) {
   if (node.__lastMarkup !== markup) {
     node.innerHTML = markup;
     node.__lastMarkup = markup;
-    const sortBtn = node.querySelector(".neighbour-sort");
-    if (sortBtn) {
-      sortBtn.onclick = () => {
-        node.__sortMode = node.__sortMode === "name" ? "negative" : "name";
+    const sortSelect = node.querySelector("[data-neighbour-sort]");
+    if (sortSelect) {
+      sortSelect.onchange = (event) => {
+        node.__sortMode = event.currentTarget.value;
         node.__lastMarkup = "";
       };
     }
@@ -1024,8 +1039,36 @@ function renderDebug(node, state) {
 
 // web/src/ui/saveLoad.js
 var KEY = "total-war-v0-save";
+var SNAPSHOT_SCHEMA_VERSION = 2;
+function isNonEmptyObject(value) {
+  return value != null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length > 0;
+}
+function buildCountryFieldMap(dynamic = {}, pickField) {
+  const entries = Object.entries(dynamic).map(([cca3, entry]) => [cca3, pickField(entry)]).filter(([, value]) => value != null).sort(([a], [b]) => a.localeCompare(b));
+  return Object.fromEntries(entries);
+}
+function collectSparseEdgeExtras(edges = [], relations = {}, relationEdgeExtras = {}) {
+  const sparse = {};
+  for (const [a, b] of edges) {
+    const edge = relations?.[a]?.[b];
+    const bakedExtras = edge?.extras;
+    const keyedExtras = relationEdgeExtras?.[`${a}|${b}`] ?? relationEdgeExtras?.[`${b}|${a}`];
+    const extras = isNonEmptyObject(bakedExtras) ? bakedExtras : keyedExtras;
+    if (!isNonEmptyObject(extras)) continue;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    sparse[key] = extras;
+  }
+  return sparse;
+}
 function makeSnapshot(state) {
+  const countryInfluence = buildCountryFieldMap(state.dynamic, (entry) => entry?.influence ?? null);
+  const countryPolicy = buildCountryFieldMap(state.dynamic, (entry) => entry?.policy ?? null);
+  const countryActionState = buildCountryFieldMap(state.dynamic, (entry) => ({
+    actionUsedTurn: entry?.actionUsedTurn ?? null,
+    cooldowns: entry?.cooldowns ?? {}
+  }));
   return {
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     seed: state.seed,
     turn: state.turn,
     paused: state.paused,
@@ -1035,10 +1078,15 @@ function makeSnapshot(state) {
     overlay: state.overlay,
     metric: state.metric,
     dynamic: state.dynamic,
+    countryInfluence,
+    countryPolicy,
+    countryActionState,
     events: state.events,
     postureByCountry: state.postureByCountry,
     relationsEdges: serializeRelations(state.relationEdges, state.relations),
-    relationEffects: state.relationEffects
+    relationEffects: state.relationEffects,
+    pacts: state.relationEffects,
+    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras)
   };
 }
 function saveToLocal(snapshot) {
@@ -1324,6 +1372,148 @@ function simulateTurn(state) {
 }
 
 // web/src/state/actions.js
+function toObject(value, fallback = {}) {
+  return value != null && typeof value === "object" && !Array.isArray(value) ? value : fallback;
+}
+function toFiniteNumber(value, fallback) {
+  const num2 = Number(value);
+  return Number.isFinite(num2) ? num2 : fallback;
+}
+function toInteger(value, fallback) {
+  return Math.round(toFiniteNumber(value, fallback));
+}
+function isKnownCountry(countryIndex2, cca3) {
+  return typeof cca3 === "string" && Object.prototype.hasOwnProperty.call(countryIndex2, cca3);
+}
+function normalizeCountrySparseMap(raw, countryIndex2, mapValue) {
+  const source = toObject(raw);
+  const entries = Object.entries(source).filter(([cca3]) => isKnownCountry(countryIndex2, cca3)).sort(([a], [b]) => a.localeCompare(b)).map(([cca3, value]) => [cca3, mapValue(value)]);
+  return Object.fromEntries(entries);
+}
+function normalizeEffectsList(rawList, normalizeItem) {
+  if (!Array.isArray(rawList)) return [];
+  const list = rawList.map((item) => normalizeItem(toObject(item, null))).filter(Boolean);
+  return list;
+}
+function normalizeRelationEffects(rawRelationEffects) {
+  const source = toObject(rawRelationEffects);
+  const guaranteesByEdge = Object.fromEntries(
+    Object.entries(toObject(source.guaranteesByEdge)).sort(([a], [b]) => a.localeCompare(b)).map(([key, guarantees]) => [key, normalizeEffectsList(guarantees, (item) => {
+      if (!item?.actor || !item?.target) return null;
+      return {
+        actor: item.actor,
+        target: item.target,
+        expiryTurn: Math.max(0, toInteger(item.expiryTurn, 0))
+      };
+    })]).filter(([, guarantees]) => guarantees.length)
+  );
+  const sanctionsByEdge = Object.fromEntries(
+    Object.entries(toObject(source.sanctionsByEdge)).sort(([a], [b]) => a.localeCompare(b)).map(([key, sanctions]) => [key, normalizeEffectsList(sanctions, (item) => {
+      if (!item?.actor || !item?.target) return null;
+      return {
+        actor: item.actor,
+        target: item.target,
+        expiryTurn: Math.max(0, toInteger(item.expiryTurn, 0)),
+        growthPenaltyActor: toFiniteNumber(item.growthPenaltyActor, 0),
+        growthPenaltyTarget: toFiniteNumber(item.growthPenaltyTarget, 0)
+      };
+    })]).filter(([, sanctions]) => sanctions.length)
+  );
+  const tradeByEdge = Object.fromEntries(
+    Object.entries(toObject(source.tradeByEdge)).sort(([a], [b]) => a.localeCompare(b)).map(([key, trade]) => {
+      const next = {};
+      if (Number.isFinite(Number(trade?.level))) next.level = Math.max(0, toInteger(trade.level, 0));
+      if (Number.isFinite(Number(trade?.buffExpiryTurn))) next.buffExpiryTurn = Math.max(0, toInteger(trade.buffExpiryTurn, 0));
+      return [key, next];
+    }).filter(([, trade]) => Object.keys(trade).length)
+  );
+  return { guaranteesByEdge, sanctionsByEdge, tradeByEdge };
+}
+function mergeCountryDynamicState(baseDynamic, countryInfluence, countryPolicy, countryActionState) {
+  const merged = {};
+  for (const [cca3, entry] of Object.entries(baseDynamic)) {
+    const actionState = clampActionUsage(countryActionState?.[cca3] ?? entry);
+    merged[cca3] = {
+      ...entry,
+      influence: clampInfluence(countryInfluence?.[cca3] ?? entry.influence),
+      policy: clampPolicy(countryPolicy?.[cca3] ?? entry.policy),
+      actionUsedTurn: actionState.actionUsedTurn,
+      cooldowns: actionState.cooldowns
+    };
+  }
+  return merged;
+}
+function normalizeRelationEdgeExtras(raw, validEdges) {
+  const source = toObject(raw);
+  const sparse = {};
+  const validSet = new Set(validEdges.map(([a, b]) => edgeKey(a, b)));
+  for (const [key, extras] of Object.entries(source).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!validSet.has(key)) continue;
+    if (extras == null || typeof extras !== "object" || Array.isArray(extras)) continue;
+    if (!Object.keys(extras).length) continue;
+    sparse[key] = { ...extras };
+  }
+  return sparse;
+}
+function mergeLegacyRelationEdgeExtras(rawRelationEdges = [], rawEdgeExtras = {}) {
+  const merged = { ...toObject(rawEdgeExtras) };
+  for (const row of rawRelationEdges) {
+    if (!Array.isArray(row) || row.length < 7) continue;
+    const [a, b, , , , , extras] = row;
+    if (!a || !b || extras == null || typeof extras !== "object" || Array.isArray(extras) || !Object.keys(extras).length) continue;
+    merged[edgeKey(a, b)] = extras;
+  }
+  return merged;
+}
+function parseSnapshot(snapshot, baseState) {
+  const safeSnapshot = toObject(snapshot, null);
+  if (!safeSnapshot) return null;
+  const rawRelationEdges = Array.isArray(safeSnapshot.relationsEdges) ? safeSnapshot.relationsEdges : Array.isArray(safeSnapshot.relationEdges) ? safeSnapshot.relationEdges : [];
+  const hydrated = hydrateRelations(baseState.neighbours, rawRelationEdges);
+  const dynamicBase = normalizeDynamicState(safeSnapshot.dynamic, baseState.countryIndex);
+  const countryInfluence = normalizeCountrySparseMap(
+    safeSnapshot.countryInfluence ?? safeSnapshot.influenceByCountry,
+    baseState.countryIndex,
+    (value) => clampInfluence(value)
+  );
+  const countryPolicy = normalizeCountrySparseMap(
+    safeSnapshot.countryPolicy ?? safeSnapshot.policyByCountry,
+    baseState.countryIndex,
+    (value) => clampPolicy(toObject(value))
+  );
+  const countryActionState = normalizeCountrySparseMap(
+    safeSnapshot.countryActionState ?? safeSnapshot.actionUsageByCountry,
+    baseState.countryIndex,
+    (value) => clampActionUsage(toObject(value))
+  );
+  const mergedEffects = {
+    ...toObject(safeSnapshot.pacts),
+    ...toObject(safeSnapshot.relationEffects)
+  };
+  const relationEffects = hydrateRelationEffectsState(normalizeRelationEffects(mergedEffects));
+  const relationEdgeExtras = normalizeRelationEdgeExtras(
+    mergeLegacyRelationEdgeExtras(rawRelationEdges, safeSnapshot.relationEdgeExtras),
+    hydrated.edges
+  );
+  return {
+    seed: safeSnapshot.seed ?? baseState.seed,
+    turn: Math.max(0, toInteger(safeSnapshot.turn, baseState.turn)),
+    paused: typeof safeSnapshot.paused === "boolean" ? safeSnapshot.paused : baseState.paused,
+    speed: toFiniteNumber(safeSnapshot.speed, baseState.speed),
+    camera: toObject(safeSnapshot.camera, baseState.camera),
+    selected: typeof safeSnapshot.selected === "string" ? safeSnapshot.selected : baseState.selected,
+    overlay: safeSnapshot.overlay ?? baseState.overlay,
+    metric: safeSnapshot.metric ?? baseState.metric,
+    events: Array.isArray(safeSnapshot.events) ? safeSnapshot.events : [],
+    dynamic: mergeCountryDynamicState(dynamicBase, countryInfluence, countryPolicy, countryActionState),
+    relations: hydrated.relations,
+    relationEdges: hydrated.edges,
+    postureByCountry: toObject(safeSnapshot.postureByCountry),
+    relationEffects,
+    relationEdgeExtras,
+    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null)
+  };
+}
 function createActions(store2) {
   return {
     stepTurn() {
@@ -1410,16 +1600,26 @@ function createActions(store2) {
     },
     loadState(snapshot) {
       store2.setState((s) => {
-        const hydrated = hydrateRelations(s.neighbours, snapshot.relationsEdges ?? []);
+        const parsed = parseSnapshot(snapshot, s);
+        if (!parsed) return s;
         return {
           ...s,
-          ...snapshot,
-          dynamic: normalizeDynamicState(snapshot.dynamic, s.countryIndex),
-          relations: hydrated.relations,
-          relationEdges: hydrated.edges,
-          postureByCountry: snapshot.postureByCountry ?? {},
-          relationEffects: hydrateRelationEffectsState(snapshot.relationEffects),
-          queuedPlayerAction: snapshot.queuedPlayerAction ?? null
+          seed: parsed.seed,
+          turn: parsed.turn,
+          paused: parsed.paused,
+          speed: parsed.speed,
+          camera: parsed.camera,
+          selected: parsed.selected,
+          overlay: parsed.overlay,
+          metric: parsed.metric,
+          events: parsed.events,
+          dynamic: parsed.dynamic,
+          relations: parsed.relations,
+          relationEdges: parsed.relationEdges,
+          postureByCountry: parsed.postureByCountry,
+          relationEffects: parsed.relationEffects,
+          relationEdgeExtras: parsed.relationEdgeExtras,
+          queuedPlayerAction: parsed.queuedPlayerAction
         };
       });
     }
