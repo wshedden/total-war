@@ -1,3 +1,5 @@
+import { serializeRelations } from '../state/relationships.js';
+
 const KEY = 'total-war-v0-save';
 
 export function makeSnapshot(state) {
@@ -11,7 +13,9 @@ export function makeSnapshot(state) {
     overlay: state.overlay,
     metric: state.metric,
     dynamic: state.dynamic,
-    events: state.events
+    events: state.events,
+    postureByCountry: state.postureByCountry,
+    relationsEdges: serializeRelations(state.relationEdges, state.relations)
   };
 }
 

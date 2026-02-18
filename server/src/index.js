@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import healthRoute from './routes/health.js';
 import countriesRoute from './routes/countries.js';
 import bordersRoute from './routes/borders.js';
+import neighboursRoute from './routes/neighbours.js';
 import { paths } from './services/cachePaths.js';
 import { logger } from './services/logger.js';
 
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/health', healthRoute);
 app.use('/api/countries', countriesRoute);
 app.use('/api/borders', bordersRoute);
+app.use('/api/neighbours', neighboursRoute);
 
 app.post('/api/data/refresh', async (_req, res) => {
   const { spawn } = await import('node:child_process');

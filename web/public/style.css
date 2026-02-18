@@ -32,3 +32,13 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
   .dossier { position: absolute; right: 0; top: 52px; bottom: 0; width: min(360px, 90vw); transform: translateX(100%); transition: transform .2s ease; z-index: 5; }
   .dossier.open { transform: translateX(0); }
 }
+
+.neighbour-head { display:flex; justify-content:space-between; align-items:center; margin:.4rem 0; gap:.5rem; font-size:13px; color:var(--muted); }
+.neighbours { display:grid; gap:.45rem; max-height: 280px; overflow:auto; }
+.neighbour-row { background:#121c2c; border:1px solid #25364e; border-radius:8px; padding:.45rem; }
+.neighbour-title { font-size:13px; margin-bottom:.2rem; }
+.rel-bar, .tense-bar { height:8px; background:#24364c; border-radius:6px; overflow:hidden; margin:.2rem 0; }
+.rel-bar i, .tense-bar i { display:block; height:100%; }
+.rel-bar i { background: linear-gradient(90deg, #dd5a4f 0%, #9aa8ba 50%, #52c087 100%); }
+.tense-bar i { background: linear-gradient(90deg, #4db67f 0%, #f0a240 55%, #dc5a4f 100%); }
+.neighbour-meta { display:flex; flex-wrap:wrap; gap:.45rem; font-size:12px; color:var(--muted); }
