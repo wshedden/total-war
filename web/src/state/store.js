@@ -28,8 +28,8 @@ function getPolicy(entry) {
   const policy = entry.policy ?? {};
   return {
     milTargetPct: clamp(policy.milTargetPct ?? entry.militaryPct ?? 2.5, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT),
-    growthFocus: clamp(policy.growthFocus ?? 0.5, 0, 1),
-    stabilityFocus: clamp(policy.stabilityFocus ?? 0.5, 0, 1),
+    growthFocus: clamp(policy.growthFocus ?? 50, 0, 100),
+    stabilityFocus: clamp(policy.stabilityFocus ?? 50, 0, 100),
     stance: STANCE_POLICY_EFFECTS[policy.stance] ? policy.stance : 'neutral'
   };
 }
@@ -121,9 +121,11 @@ export function simulateTurn(state) {
       POLICY_MILITARY_MAX_DELTA_PER_TURN
     );
     const militaryPct = clamp(entry.militaryPct + militaryDelta, POLICY_MILITARY_MIN_PCT, POLICY_MILITARY_MAX_PCT);
+    const growthFocusNorm = policy.growthFocus / 100;
+    const stabilityFocusNorm = policy.stabilityFocus / 100;
     const stabilityPolicyDelta = clamp(
-      (policy.stabilityFocus - 0.5) * 0.03
-        - (policy.growthFocus - 0.5) * 0.012
+      (stabilityFocusNorm - 0.5) * 0.03
+        - (growthFocusNorm - 0.5) * 0.012
         + stanceEffects.stability,
       POLICY_STABILITY_DELTA_MIN,
       POLICY_STABILITY_DELTA_MAX
@@ -161,9 +163,11 @@ export function simulateTurn(state) {
       events.push({ turn: nextTurn, cca3, text: growthMod > 0 ? 'Investment boom' : 'Economic shock' });
     }
 
+    const growthFocusNorm = entry.policy.growthFocus / 100;
+    const stabilityFocusNorm = entry.policy.stabilityFocus / 100;
     const growthPolicyMod = clamp(
-      (entry.policy.growthFocus - 0.5) * 0.01
-        + (0.5 - entry.policy.stabilityFocus) * 0.004
+      (growthFocusNorm - 0.5) * 0.01
+        + (0.5 - stabilityFocusNorm) * 0.004
         + stanceEffects.growth,
       POLICY_GROWTH_MOD_MIN,
       POLICY_GROWTH_MOD_MAX
