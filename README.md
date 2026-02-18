@@ -25,6 +25,15 @@ Open `http://localhost:3000`.
 - `D`: toggle debug overlay
 - `Escape`: close help modal
 
+> Input-focus reminder: global keybinds are intentionally ignored while a text input is focused, so typing in search or numeric controls does not trigger turn controls.
+
+## How diplomacy works
+- Diplomacy is modelled on sparse neighbour edges with three primary meters: `rel`, `tension`, and `trust`.
+- Each country has `influence`, a policy profile, and per-action cooldowns that gate diplomacy choices.
+- On each turn, action planning selects one queued player action (if present) and up to one AI action per actor, then applies them in deterministic stable order.
+- Actions can create persistent pacts/effects (guarantees, sanctions, trade buffs) that are tracked separately from base edge values and expire over future turns.
+- After actions, the relationship simulation advances edge values, applies modifiers, and emits diplomacy events.
+
 ## Features in v1
 - Canvas world map with Natural Earth projection (`geoNaturalEarth1`)
 - Political overlay + data heatmap overlay
@@ -32,7 +41,6 @@ Open `http://localhost:3000`.
 - Deterministic seeded turn simulation
 - Save/load via localStorage + JSON export/import
 - Offline-fast startup after first data refresh
-
 - Neighbour graph cache (`data/cache/neighbours.json`) built from TopoJSON adjacency
 - Deterministic sparse relationship simulation per shared border (rel/tension/trust)
 - Diplomacy overlay and dossier neighbour section with relation/tension meters
