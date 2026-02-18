@@ -1,5 +1,6 @@
 import { countryTurnRng } from '../util/rng.js';
 import { initRelations, stepRelations } from './relationships.js';
+import { TURN_INFLUENCE_CONFIG, buildTopGdpCountrySet, computeInfluenceGain, applyInfluenceGain } from './influence.js';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -72,6 +73,7 @@ export function createInitialSimState(countryIndex) {
       aiBias: 0.5,
       growthRate: 0.01,
       stability: 0.55,
+      influence: 0,
       militarySpendAbs,
       power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0),
       influence: DEFAULT_INFLUENCE,
@@ -179,6 +181,12 @@ export function simulateTurn(state) {
     );
     nextDynamic[cca3].militarySpendAbs = nextDynamic[cca3].gdp * (nextDynamic[cca3].militaryPct / 100);
     nextDynamic[cca3].power = computePower(nextDynamic[cca3].gdp, nextDynamic[cca3].militaryPct, state.countryIndex[cca3]?.population ?? 0);
+  }
+
+  const topGdpCountries = buildTopGdpCountrySet(nextDynamic, TURN_INFLUENCE_CONFIG.topGdpPercentile);
+  for (const [cca3, entry] of Object.entries(nextDynamic)) {
+    const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
+    nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
   }
 
   return {
