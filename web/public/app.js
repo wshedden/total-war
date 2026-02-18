@@ -500,6 +500,34 @@ function importJsonFile() {
   });
 }
 
+// web/src/state/influence.js
+var TURN_INFLUENCE_CONFIG = {
+  baseGain: 1,
+  stabilityGain: 1,
+  topGdpGain: 1,
+  stabilityThreshold: 0.7,
+  topGdpPercentile: 0.15,
+  maxInfluence: 50
+};
+function rankCountriesByGdp(dynamic) {
+  return Object.entries(dynamic).map(([cca3, entry]) => ({ cca3, gdp: entry?.gdp ?? 0 })).sort((a, b) => b.gdp - a.gdp || a.cca3.localeCompare(b.cca3));
+}
+function buildTopGdpCountrySet(dynamic, percentile = TURN_INFLUENCE_CONFIG.topGdpPercentile) {
+  const ranking = rankCountriesByGdp(dynamic);
+  const count = Math.max(1, Math.ceil(ranking.length * percentile));
+  return new Set(ranking.slice(0, count).map((item) => item.cca3));
+}
+function computeInfluenceGain(entry, isTopGdpCountry, config = TURN_INFLUENCE_CONFIG) {
+  let gain = config.baseGain;
+  if ((entry?.stability ?? 0) >= config.stabilityThreshold) gain += config.stabilityGain;
+  if (isTopGdpCountry) gain += config.topGdpGain;
+  return gain;
+}
+function applyInfluenceGain(entry, gain, maxInfluence = TURN_INFLUENCE_CONFIG.maxInfluence) {
+  const influence = Math.max(0, entry?.influence ?? 0);
+  return Math.min(maxInfluence, influence + gain);
+}
+
 // web/src/state/store.js
 function computePower(gdp, militaryPct, population) {
   const milAbs = Math.max(0, gdp * (militaryPct / 100));
@@ -535,6 +563,7 @@ function createInitialSimState(countryIndex2) {
       aiBias: 0.5,
       growthRate: 0.01,
       stability: 0.55,
+      influence: 0,
       militarySpendAbs,
       power: computePower(gdp, militaryPct, country.population ?? country.indicators.population ?? 0)
     };
@@ -596,6 +625,11 @@ function simulateTurn(state) {
     nextDynamic[cca3].militaryPct = Math.max(0.2, Math.min(12, nextDynamic[cca3].militaryPct + hostilityRate * 0.08));
     nextDynamic[cca3].militarySpendAbs = nextDynamic[cca3].gdp * (nextDynamic[cca3].militaryPct / 100);
     nextDynamic[cca3].power = computePower(nextDynamic[cca3].gdp, nextDynamic[cca3].militaryPct, state.countryIndex[cca3]?.population ?? 0);
+  }
+  const topGdpCountries = buildTopGdpCountrySet(nextDynamic, TURN_INFLUENCE_CONFIG.topGdpPercentile);
+  for (const [cca3, entry] of Object.entries(nextDynamic)) {
+    const gain = computeInfluenceGain(entry, topGdpCountries.has(cca3), TURN_INFLUENCE_CONFIG);
+    nextDynamic[cca3].influence = applyInfluenceGain(entry, gain, TURN_INFLUENCE_CONFIG.maxInfluence);
   }
   return {
     ...state,
