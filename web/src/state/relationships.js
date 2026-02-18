@@ -99,7 +99,7 @@ function classifyPosture(edge) {
   return edge.rel >= 40 && edge.tension < 40 ? 'Friendly' : 'Wary';
 }
 
-export function stepRelations({ turn, seed, relations, edges, dynamic, events }) {
+export function stepRelations({ turn, seed, relations, edges, dynamic, events, relationInputsByCountry = {} }) {
   const nextRelations = {};
   const postureByCountry = {};
   const nextEvents = [];
@@ -141,6 +141,12 @@ export function stepRelations({ turn, seed, relations, edges, dynamic, events })
       + (rel > 25 && tension < 35 ? 1 : 0)
       - (tension > 70 ? 1 : 0)
       - (rel < -35 ? 1 : 0);
+
+    const inputA = relationInputsByCountry[a] ?? {};
+    const inputB = relationInputsByCountry[b] ?? {};
+    relDelta += (inputA.relDelta ?? 0) + (inputB.relDelta ?? 0);
+    tensionDelta += (inputA.tensionDelta ?? 0) + (inputB.tensionDelta ?? 0);
+    trustDelta += (inputA.trustDelta ?? 0) + (inputB.trustDelta ?? 0);
 
     const pairRand = mulberry32(hashString(`evt:${seed}:${turn}:${pairKey(a, b)}`));
     const roll = pairRand();
