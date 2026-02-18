@@ -1,4 +1,5 @@
 import { serializeRelations } from '../state/relationships.js';
+import { serializeHistoryStore } from '../sim/historyStore.js';
 
 const KEY = 'total-war-v0-save';
 const SNAPSHOT_SCHEMA_VERSION = 2;
@@ -56,7 +57,11 @@ export function makeSnapshot(state) {
     relationsEdges: serializeRelations(state.relationEdges, state.relations),
     relationEffects: state.relationEffects,
     pacts: state.relationEffects,
-    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras)
+    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras),
+    chartsWindow: state.chartsWindow,
+    chartControls: state.chartControls,
+    chartPinned: state.chartPinned,
+    history: serializeHistoryStore(state.history)
   };
 }
 

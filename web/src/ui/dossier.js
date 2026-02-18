@@ -146,6 +146,10 @@ export function renderDossier(node, state, actions, onUiStateChange = null) {
     <div class="metric"><span>Influence</span><strong data-dossier-influence>${fmtCompact(dyn.influence)}</strong></div>
     <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
+    <div class="dossier-chart-actions">
+      <button type="button" data-chart-open>Open charts</button>
+      <button type="button" data-chart-pin>Pin to charts</button>
+    </div>
 
     <h3>Policy controls</h3>
     <div class="policy-controls">
@@ -244,6 +248,11 @@ export function renderDossier(node, state, actions, onUiStateChange = null) {
         actions.queuePlayerDiplomaticAction(btn.getAttribute('data-action-type'), node.__diplomacyTarget, selected.cca3);
       };
     });
+
+    const chartOpen = node.querySelector('[data-chart-open]');
+    if (chartOpen) chartOpen.onclick = () => actions.setChartsWindow({ open: true });
+    const chartPin = node.querySelector('[data-chart-pin]');
+    if (chartPin) chartPin.onclick = () => actions.pinCountry(selected.cca3);
   }
 
   node.classList.toggle('open', state.dossierOpen);

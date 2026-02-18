@@ -8,7 +8,7 @@ var el = (tag, className, text) => {
 function isTypingTarget(target = document.activeElement) {
   if (!target) return false;
   const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
 }
 
 // web/src/ui/layout.js
@@ -56,14 +56,15 @@ function renderTopbar(container, actions2) {
   const exportBtn = el("button", "", "Export");
   const importBtn = el("button", "", "Import");
   const newGame = el("button", "", "New Game");
+  const charts = el("button", "", "Charts");
   const help = el("button", "", "Help");
   pause.onclick = () => actions2.togglePause();
   step.onclick = () => actions2.stepTurn();
   speed.onchange = () => actions2.setSpeed(Number(speed.value));
   overlay.onchange = () => actions2.setOverlay(overlay.value);
   metric.onchange = () => actions2.setMetric(metric.value);
-  container.append(search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help);
-  return { search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help };
+  container.append(search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, charts, help);
+  return { search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, charts, help };
 }
 
 // web/src/ui/search.js
@@ -867,6 +868,10 @@ function renderDossier(node, state, actions2, onUiStateChange = null) {
     <div class="metric"><span>Influence</span><strong data-dossier-influence>${fmtCompact(dyn.influence)}</strong></div>
     <div class="metric" title="Projected influence gain next turn."><span>Influence gain hint</span><strong data-dossier-influence-hint>${influenceHintText}</strong></div>
     <div class="metric"><span>Power</span><strong data-dossier-power>${fmtCompact(dyn.power)}</strong></div>
+    <div class="dossier-chart-actions">
+      <button type="button" data-chart-open>Open charts</button>
+      <button type="button" data-chart-pin>Pin to charts</button>
+    </div>
 
     <h3>Policy controls</h3>
     <div class="policy-controls">
@@ -959,6 +964,10 @@ function renderDossier(node, state, actions2, onUiStateChange = null) {
         actions2.queuePlayerDiplomaticAction(btn.getAttribute("data-action-type"), node.__diplomacyTarget, selected.cca3);
       };
     });
+    const chartOpen = node.querySelector("[data-chart-open]");
+    if (chartOpen) chartOpen.onclick = () => actions2.setChartsWindow({ open: true });
+    const chartPin = node.querySelector("[data-chart-pin]");
+    if (chartPin) chartPin.onclick = () => actions2.pinCountry(selected.cca3);
   }
   node.classList.toggle("open", state.dossierOpen);
 }
@@ -1104,6 +1113,164 @@ function renderDebug(node, state) {
   }
 }
 
+// web/src/sim/historyStore.js
+var DEFAULT_MAX_TURNS_HISTORY = 360;
+var CHART_METRICS = [
+  { key: "gdp", label: "GDP", format: "compact" },
+  { key: "gdpPerCapita", label: "GDP per capita", format: "compact" },
+  { key: "population", label: "Population", format: "compact" },
+  { key: "militaryPct", label: "Military % GDP", format: "percent" },
+  { key: "militarySpendAbs", label: "Military spend", format: "compact" },
+  { key: "power", label: "Power", format: "compact" },
+  { key: "stability", label: "Stability", format: "percent" },
+  { key: "influence", label: "Influence", format: "compact" },
+  { key: "avgBorderTension", label: "Average border tension", format: "number" }
+];
+var METRIC_KEYS = CHART_METRICS.map((metric) => metric.key);
+function metricValue(metric, dyn, country, relations, neighbours2, cca3) {
+  if (metric === "gdp") return Number(dyn?.gdp ?? 0);
+  if (metric === "population") return Number(country?.population ?? country?.indicators?.population ?? 0);
+  if (metric === "militaryPct") return Number(dyn?.militaryPct ?? 0);
+  if (metric === "militarySpendAbs") return Number(dyn?.militarySpendAbs ?? (dyn?.gdp ?? 0) * ((dyn?.militaryPct ?? 0) / 100));
+  if (metric === "power") return Number(dyn?.power ?? 0);
+  if (metric === "stability") return Number(dyn?.stability ?? 0);
+  if (metric === "influence") return Number(dyn?.influence ?? 0);
+  if (metric === "gdpPerCapita") {
+    const pop = Number(country?.population ?? country?.indicators?.population ?? 0);
+    return pop > 0 ? Number(dyn?.gdp ?? 0) / pop : 0;
+  }
+  if (metric === "avgBorderTension") {
+    const ns = neighbours2?.[cca3] ?? [];
+    if (!ns.length) return 0;
+    const total = ns.reduce((sum, neighbourCode) => sum + Number(relations?.[cca3]?.[neighbourCode]?.tension ?? 0), 0);
+    return total / ns.length;
+  }
+  return 0;
+}
+function createCountryMetricBuffers(maxTurnsHistory) {
+  const entry = {};
+  for (const metric of METRIC_KEYS) {
+    entry[metric] = new Float64Array(maxTurnsHistory);
+  }
+  return entry;
+}
+function createHistoryStore(countryCodes, maxTurnsHistory = DEFAULT_MAX_TURNS_HISTORY) {
+  const sortedCountryCodes = [...countryCodes].sort((a, b) => a.localeCompare(b));
+  const perCountry = {};
+  for (const code of sortedCountryCodes) {
+    perCountry[code] = createCountryMetricBuffers(maxTurnsHistory);
+  }
+  return {
+    version: 1,
+    maxTurnsHistory,
+    cursor: 0,
+    size: 0,
+    turnBySlot: new Int32Array(maxTurnsHistory),
+    countryCodes: sortedCountryCodes,
+    perCountry
+  };
+}
+function recordHistoryTurn(history, state) {
+  if (!history) return history;
+  const slot = history.cursor;
+  history.turnBySlot[slot] = state.turn;
+  for (const cca3 of history.countryCodes) {
+    const dyn = state.dynamic?.[cca3];
+    const country = state.countryIndex?.[cca3];
+    const buffers = history.perCountry[cca3];
+    for (const metric of METRIC_KEYS) {
+      buffers[metric][slot] = metricValue(metric, dyn, country, state.relations, state.neighbours, cca3);
+    }
+  }
+  history.cursor = (history.cursor + 1) % history.maxTurnsHistory;
+  history.size = Math.min(history.maxTurnsHistory, history.size + 1);
+  return history;
+}
+function slotFromOffset(history, offset) {
+  const oldestIndex = history.size === history.maxTurnsHistory ? history.cursor : 0;
+  return (oldestIndex + offset) % history.maxTurnsHistory;
+}
+function getHistoryTurns(history, range = "all") {
+  if (!history || history.size === 0) return [];
+  const limit = range === "50" ? 50 : range === "200" ? 200 : history.size;
+  const count = Math.min(history.size, limit);
+  const firstOffset = history.size - count;
+  const turns = [];
+  for (let i = firstOffset; i < history.size; i += 1) {
+    turns.push(history.turnBySlot[slotFromOffset(history, i)]);
+  }
+  return turns;
+}
+function getCountryMetricSeries(history, cca3, metric, range = "all") {
+  if (!history || !history.perCountry?.[cca3]?.[metric] || history.size === 0) return [];
+  const limit = range === "50" ? 50 : range === "200" ? 200 : history.size;
+  const count = Math.min(history.size, limit);
+  const firstOffset = history.size - count;
+  const values = [];
+  const source = history.perCountry[cca3][metric];
+  for (let i = firstOffset; i < history.size; i += 1) {
+    values.push(source[slotFromOffset(history, i)]);
+  }
+  return values;
+}
+function getTopCountriesForMetric(state, metric, limit = 20) {
+  const entries = Object.keys(state.dynamic ?? {}).map((code) => {
+    const dyn = state.dynamic[code];
+    const country = state.countryIndex?.[code];
+    return {
+      code,
+      label: country?.name ?? code,
+      value: metricValue(metric, dyn, country, state.relations, state.neighbours, code)
+    };
+  });
+  entries.sort((a, b) => b.value - a.value || a.code.localeCompare(b.code));
+  return entries.slice(0, limit);
+}
+function serializeHistoryStore(history) {
+  if (!history) return null;
+  const serializedPerCountry = {};
+  for (const code of history.countryCodes) {
+    const metrics = {};
+    for (const metric of METRIC_KEYS) {
+      metrics[metric] = Array.from(history.perCountry[code][metric]);
+    }
+    serializedPerCountry[code] = metrics;
+  }
+  return {
+    version: history.version,
+    maxTurnsHistory: history.maxTurnsHistory,
+    cursor: history.cursor,
+    size: history.size,
+    turnBySlot: Array.from(history.turnBySlot),
+    countryCodes: [...history.countryCodes],
+    perCountry: serializedPerCountry
+  };
+}
+function hydrateHistoryStore(serialized, countryCodes, fallbackMaxTurnsHistory = DEFAULT_MAX_TURNS_HISTORY) {
+  if (!serialized || typeof serialized !== "object") {
+    return createHistoryStore(countryCodes, fallbackMaxTurnsHistory);
+  }
+  const maxTurnsHistory = Math.max(24, Number(serialized.maxTurnsHistory) || fallbackMaxTurnsHistory);
+  const hydrated = createHistoryStore(countryCodes, maxTurnsHistory);
+  hydrated.cursor = Math.max(0, Math.min(maxTurnsHistory - 1, Number(serialized.cursor) || 0));
+  hydrated.size = Math.max(0, Math.min(maxTurnsHistory, Number(serialized.size) || 0));
+  if (Array.isArray(serialized.turnBySlot)) {
+    for (let i = 0; i < Math.min(maxTurnsHistory, serialized.turnBySlot.length); i += 1) {
+      hydrated.turnBySlot[i] = Number(serialized.turnBySlot[i]) || 0;
+    }
+  }
+  for (const code of hydrated.countryCodes) {
+    const sourceMetrics = serialized.perCountry?.[code] ?? {};
+    for (const metric of METRIC_KEYS) {
+      const arr = Array.isArray(sourceMetrics[metric]) ? sourceMetrics[metric] : [];
+      for (let i = 0; i < Math.min(maxTurnsHistory, arr.length); i += 1) {
+        hydrated.perCountry[code][metric][i] = Number(arr[i]) || 0;
+      }
+    }
+  }
+  return hydrated;
+}
+
 // web/src/ui/saveLoad.js
 var KEY = "total-war-v0-save";
 var SNAPSHOT_SCHEMA_VERSION = 2;
@@ -1153,7 +1320,11 @@ function makeSnapshot(state) {
     relationsEdges: serializeRelations(state.relationEdges, state.relations),
     relationEffects: state.relationEffects,
     pacts: state.relationEffects,
-    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras)
+    relationEdgeExtras: collectSparseEdgeExtras(state.relationEdges, state.relations, state.relationEdgeExtras),
+    chartsWindow: state.chartsWindow,
+    chartControls: state.chartControls,
+    chartPinned: state.chartPinned,
+    history: serializeHistoryStore(state.history)
   };
 }
 function saveToLocal(snapshot) {
@@ -1611,13 +1782,27 @@ function parseSnapshot(snapshot, baseState) {
     postureByCountry: toObject(safeSnapshot.postureByCountry),
     relationEffects,
     relationEdgeExtras,
-    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null)
+    queuedPlayerAction: toObject(safeSnapshot.queuedPlayerAction, null),
+    chartsWindow: {
+      ...baseState.chartsWindow,
+      ...toObject(safeSnapshot.chartsWindow)
+    },
+    chartControls: {
+      ...baseState.chartControls,
+      ...toObject(safeSnapshot.chartControls)
+    },
+    chartPinned: Array.isArray(safeSnapshot.chartPinned) ? safeSnapshot.chartPinned.filter((code) => isKnownCountry(baseState.countryIndex, code)) : baseState.chartPinned,
+    history: hydrateHistoryStore(safeSnapshot.history, Object.keys(baseState.countryIndex))
   };
 }
 function createActions(store2) {
   return {
     stepTurn() {
-      store2.setState((s) => simulateTurn(s));
+      store2.setState((s) => {
+        const next = simulateTurn(s);
+        recordHistoryTurn(next.history, next);
+        return next;
+      });
     },
     togglePause() {
       store2.setState((s) => ({ ...s, paused: !s.paused }));
@@ -1649,7 +1834,8 @@ function createActions(store2) {
     newGame(seed) {
       store2.setState((s) => {
         const { relations, edges } = createInitialRelations(seed, s.neighbours, s.countryIndex);
-        return {
+        const history = createHistoryStore(Object.keys(s.countryIndex));
+        const next = {
           ...s,
           seed,
           turn: 0,
@@ -1659,7 +1845,13 @@ function createActions(store2) {
           relationEdges: edges,
           postureByCountry: {},
           relationEffects: createInitialRelationEffects(),
-          queuedPlayerAction: null
+          queuedPlayerAction: null,
+          chartPinned: [],
+          history
+        };
+        recordHistoryTurn(history, next);
+        return {
+          ...next
         };
       });
     },
@@ -1698,11 +1890,29 @@ function createActions(store2) {
     clearQueuedPlayerDiplomaticAction() {
       store2.setState((s) => s.queuedPlayerAction ? { ...s, queuedPlayerAction: null } : s);
     },
+    setChartsWindow(partial) {
+      store2.setState((s) => ({ ...s, chartsWindow: { ...s.chartsWindow, ...partial } }));
+    },
+    setChartControls(partial) {
+      store2.setState((s) => ({ ...s, chartControls: { ...s.chartControls, ...partial } }));
+    },
+    pinCountry(cca3) {
+      store2.setState((s) => {
+        if (!isKnownCountry(s.countryIndex, cca3) || s.chartPinned.includes(cca3)) return s;
+        return { ...s, chartPinned: [...s.chartPinned, cca3] };
+      });
+    },
+    unpinCountry(cca3) {
+      store2.setState((s) => ({ ...s, chartPinned: s.chartPinned.filter((code) => code !== cca3) }));
+    },
+    toggleChartsWindow() {
+      store2.setState((s) => ({ ...s, chartsWindow: { ...s.chartsWindow, open: !s.chartsWindow.open } }));
+    },
     loadState(snapshot) {
       store2.setState((s) => {
         const parsed = parseSnapshot(snapshot, s);
         if (!parsed) return s;
-        return {
+        const nextState = {
           ...s,
           seed: parsed.seed,
           turn: parsed.turn,
@@ -1719,8 +1929,14 @@ function createActions(store2) {
           postureByCountry: parsed.postureByCountry,
           relationEffects: parsed.relationEffects,
           relationEdgeExtras: parsed.relationEdgeExtras,
-          queuedPlayerAction: parsed.queuedPlayerAction
+          queuedPlayerAction: parsed.queuedPlayerAction,
+          chartsWindow: parsed.chartsWindow,
+          chartControls: parsed.chartControls,
+          chartPinned: parsed.chartPinned,
+          history: parsed.history
         };
+        if (!nextState.history?.size) recordHistoryTurn(nextState.history, nextState);
+        return nextState;
       });
     }
   };
@@ -3610,6 +3826,410 @@ function createFpsCounter() {
   };
 }
 
+// web/src/util/stats.js
+function movingAverage(values, windowSize) {
+  if (!Array.isArray(values) || windowSize <= 1) return [...values ?? []];
+  const out = new Array(values.length).fill(0);
+  let sum = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    sum += values[i];
+    if (i >= windowSize) sum -= values[i - windowSize];
+    const count = Math.min(i + 1, windowSize);
+    out[i] = sum / count;
+  }
+  return out;
+}
+function mean(values) {
+  if (!values?.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+// web/src/ui/chartCanvas.js
+function formatValue(value, format) {
+  if (format === "percent") return fmtPercent(value);
+  if (format === "compact") return fmtCompact(value);
+  return value.toFixed(2);
+}
+function toCanvasSize(canvas) {
+  const ratio = window.devicePixelRatio || 1;
+  const width = Math.max(1, Math.floor(canvas.clientWidth * ratio));
+  const height = Math.max(1, Math.floor(canvas.clientHeight * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  return { width, height, ratio };
+}
+function createChartCanvas(canvas, tooltipNode) {
+  let model = null;
+  function draw() {
+    if (!model) return;
+    const { width, height, ratio } = toCanvasSize(canvas);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    const w = width / ratio;
+    const h = height / ratio;
+    ctx.clearRect(0, 0, w, h);
+    const pad = { l: 54, t: 20, r: 18, b: 34 };
+    const plotW = w - pad.l - pad.r;
+    const plotH = h - pad.t - pad.b;
+    ctx.fillStyle = "#0f1622";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#2c3c55";
+    ctx.lineWidth = 1;
+    const min = model.yMin;
+    const max = model.yMax <= min ? min + 1 : model.yMax;
+    for (let i = 0; i <= 4; i += 1) {
+      const y = pad.t + plotH * i / 4;
+      ctx.strokeStyle = "#223247";
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y);
+      ctx.lineTo(pad.l + plotW, y);
+      ctx.stroke();
+      const value = max - (max - min) * i / 4;
+      ctx.fillStyle = "#a7b8cd";
+      ctx.font = "12px Inter, Segoe UI, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(formatValue(value, model.metricFormat), pad.l - 6, y + 4);
+    }
+    if (model.type === "line") {
+      for (const series of model.series) {
+        if (!series.values.length) continue;
+        ctx.strokeStyle = series.colour;
+        ctx.lineWidth = series.highlight ? 2.8 : 1.7;
+        ctx.beginPath();
+        for (let i = 0; i < series.values.length; i += 1) {
+          const x = pad.l + plotW * i / Math.max(1, series.values.length - 1);
+          const yNorm = (series.values[i] - min) / (max - min || 1);
+          const y = pad.t + plotH - yNorm * plotH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#9eb2cc";
+      ctx.font = "12px Inter, Segoe UI, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(model.xLabel ?? "Turn", pad.l, h - 8);
+    } else if (model.type === "bar") {
+      const barWidth = plotW / Math.max(1, model.bars.length);
+      model.bars.forEach((bar, i) => {
+        const x = pad.l + i * barWidth + 2;
+        const norm = (bar.value - min) / (max - min || 1);
+        const barH = Math.max(2, norm * plotH);
+        const y = pad.t + plotH - barH;
+        ctx.fillStyle = bar.colour;
+        ctx.fillRect(x, y, Math.max(2, barWidth - 4), barH);
+      });
+    }
+    ctx.fillStyle = "#d8e4f2";
+    ctx.font = "13px Inter, Segoe UI, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(model.title, pad.l, 14);
+  }
+  function setTooltip(payload, x, y) {
+    if (!payload) {
+      tooltipNode.hidden = true;
+      return;
+    }
+    tooltipNode.hidden = false;
+    tooltipNode.style.left = `${x + 16}px`;
+    tooltipNode.style.top = `${y + 16}px`;
+    tooltipNode.innerHTML = payload;
+  }
+  canvas.addEventListener("mouseleave", () => setTooltip(null));
+  canvas.addEventListener("mousemove", (event) => {
+    if (!model) return;
+    if (model.type === "line" && model.series.length) {
+      const rect = canvas.getBoundingClientRect();
+      const relX = event.clientX - rect.left;
+      const idx = Math.round(relX / Math.max(1, rect.width) * Math.max(0, model.turns.length - 1));
+      if (idx < 0 || idx >= model.turns.length) return setTooltip(null);
+      const lines = [`<strong>Turn ${model.turns[idx]}</strong>`];
+      for (const series of model.series.slice(0, 8)) {
+        const val = series.values[idx];
+        if (!Number.isFinite(val)) continue;
+        lines.push(`<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${series.colour};margin-right:6px"></span>${series.label}: ${formatValue(val, model.metricFormat)}</div>`);
+      }
+      setTooltip(lines.join(""), event.clientX, event.clientY);
+    } else if (model.type === "bar" && model.bars.length) {
+      const rect = canvas.getBoundingClientRect();
+      const relX = event.clientX - rect.left;
+      const idx = Math.floor(relX / Math.max(1, rect.width) * model.bars.length);
+      const bar = model.bars[idx];
+      if (!bar) return setTooltip(null);
+      setTooltip(`<strong>${bar.label}</strong><div>${formatValue(bar.value, model.metricFormat)}</div>`, event.clientX, event.clientY);
+    }
+  });
+  return {
+    render(nextModel) {
+      model = nextModel;
+      draw();
+    }
+  };
+}
+
+// web/src/ui/floatingWindow.js
+function clamp5(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+function stopMapInteraction(event) {
+  event.stopPropagation();
+}
+function createFloatingWindow(root2, config) {
+  const node = el("section", "floating-window");
+  node.style.zIndex = String(config.zIndex ?? 30);
+  const titlebar = el("div", "floating-window__titlebar");
+  const title = el("strong", "floating-window__title", config.title ?? "Window");
+  const controls2 = el("div", "floating-window__controls");
+  const close = el("button", "floating-window__close", "\u2715");
+  close.type = "button";
+  controls2.append(close);
+  titlebar.append(title, controls2);
+  const content = el("div", "floating-window__content");
+  const resize = el("div", "floating-window__resize");
+  node.append(titlebar, content, resize);
+  root2.append(node);
+  const minWidth = config.minWidth ?? 460;
+  const minHeight = config.minHeight ?? 320;
+  const maxWidthPad = 20;
+  const maxHeightPad = 20;
+  let dragState = null;
+  let resizeState = null;
+  function applyBounds(nextState) {
+    const maxWidth = Math.max(minWidth, window.innerWidth - maxWidthPad);
+    const maxHeight = Math.max(minHeight, window.innerHeight - maxHeightPad);
+    const width = clamp5(nextState.w, minWidth, maxWidth);
+    const height = clamp5(nextState.h, minHeight, maxHeight);
+    const x = clamp5(nextState.x, 0, Math.max(0, window.innerWidth - width));
+    const y = clamp5(nextState.y, 44, Math.max(44, window.innerHeight - height));
+    config.onChange?.({ ...nextState, x, y, w: width, h: height });
+  }
+  function render(state) {
+    node.hidden = !state.open;
+    if (!state.open) return;
+    node.style.left = `${state.x}px`;
+    node.style.top = `${state.y}px`;
+    node.style.width = `${state.w}px`;
+    node.style.height = `${state.h}px`;
+    node.style.zIndex = String(state.zIndex ?? config.zIndex ?? 30);
+  }
+  function beginDrag(event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    config.onFocus?.();
+    const state = config.getState();
+    dragState = { x: event.clientX, y: event.clientY, startX: state.x, startY: state.y };
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", endDrag);
+  }
+  function onDragMove(event) {
+    if (!dragState) return;
+    const dx = event.clientX - dragState.x;
+    const dy = event.clientY - dragState.y;
+    applyBounds({ ...config.getState(), x: dragState.startX + dx, y: dragState.startY + dy });
+  }
+  function endDrag() {
+    dragState = null;
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", endDrag);
+  }
+  function beginResize(event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    config.onFocus?.();
+    const state = config.getState();
+    resizeState = { x: event.clientX, y: event.clientY, w: state.w, h: state.h };
+    window.addEventListener("mousemove", onResizeMove);
+    window.addEventListener("mouseup", endResize);
+  }
+  function onResizeMove(event) {
+    if (!resizeState) return;
+    const dx = event.clientX - resizeState.x;
+    const dy = event.clientY - resizeState.y;
+    applyBounds({ ...config.getState(), w: resizeState.w + dx, h: resizeState.h + dy });
+  }
+  function endResize() {
+    resizeState = null;
+    window.removeEventListener("mousemove", onResizeMove);
+    window.removeEventListener("mouseup", endResize);
+  }
+  titlebar.addEventListener("mousedown", beginDrag);
+  resize.addEventListener("mousedown", beginResize);
+  close.addEventListener("click", () => config.onClose?.());
+  [node, titlebar, content, resize].forEach((target) => {
+    target.addEventListener("mousedown", stopMapInteraction);
+    target.addEventListener("wheel", stopMapInteraction);
+    target.addEventListener("click", () => config.onFocus?.());
+  });
+  window.addEventListener("resize", () => applyBounds(config.getState()));
+  return { node, content, render, setTitle: (text) => {
+    title.textContent = text;
+  } };
+}
+
+// web/src/ui/chartsWindow.js
+function metricByKey(key) {
+  return CHART_METRICS.find((metric) => metric.key === key) ?? CHART_METRICS[0];
+}
+function applySmoothing(values, smoothing) {
+  if (smoothing === "3") return movingAverage(values, 3);
+  if (smoothing === "7") return movingAverage(values, 7);
+  return values;
+}
+function regionAverageSeries(state, turns, metric, range) {
+  const selected = state.selected;
+  const region = selected ? state.countryIndex?.[selected]?.region : null;
+  if (!region) return null;
+  const regionCodes = Object.keys(state.countryIndex).filter((code) => state.countryIndex[code]?.region === region);
+  if (!regionCodes.length) return null;
+  return turns.map((_, idx) => mean(regionCodes.map((code) => getCountryMetricSeries(state.history, code, metric, range)[idx] ?? 0)));
+}
+function neighbourAverageSeries(state, turns, metric, range) {
+  const selected = state.selected;
+  if (!selected) return null;
+  const neighbours2 = state.neighbours?.[selected] ?? [];
+  if (!neighbours2.length) return null;
+  return turns.map((_, idx) => mean(neighbours2.map((code) => getCountryMetricSeries(state.history, code, metric, range)[idx] ?? 0)));
+}
+function createChartsWindow(hostNode, store2, actions2) {
+  const panel = el("div", "charts-window");
+  const controls2 = el("div", "charts-controls");
+  const mode = el("select", "charts-control");
+  mode.innerHTML = `
+    <option value="selected">Selected</option>
+    <option value="pinned">Pinned</option>
+    <option value="world">World Top 20</option>
+    <option value="region">Region average</option>
+    <option value="neighbours">Neighbours</option>
+  `;
+  const metricSelect = el("select", "charts-control");
+  metricSelect.innerHTML = CHART_METRICS.map((metric) => `<option value="${metric.key}">${metric.label}</option>`).join("");
+  const range = el("select", "charts-control");
+  range.innerHTML = '<option value="50">Last 50 turns</option><option value="200">Last 200 turns</option><option value="all">All stored</option>';
+  const smoothing = el("select", "charts-control");
+  smoothing.innerHTML = '<option value="none">Smoothing: none</option><option value="3">Smoothing: 3-turn</option><option value="7">Smoothing: 7-turn</option>';
+  const pinSelected = el("button", "", "Pin selected");
+  pinSelected.type = "button";
+  const tags = el("div", "chart-tags");
+  controls2.append(mode, metricSelect, range, smoothing, pinSelected);
+  const canvasWrap = el("div", "chart-canvas-wrap");
+  const canvas = el("canvas", "chart-canvas");
+  const tooltip = el("div", "chart-tooltip");
+  tooltip.hidden = true;
+  canvasWrap.append(canvas, tooltip);
+  panel.append(controls2, tags, canvasWrap);
+  const floating = createFloatingWindow(hostNode, {
+    title: "Charts",
+    zIndex: 28,
+    minWidth: 520,
+    minHeight: 340,
+    getState: () => store2.getState().chartsWindow,
+    onClose: () => actions2.setChartsWindow({ open: false }),
+    onFocus: () => actions2.setChartsWindow({ zIndex: 28 }),
+    onChange: (nextState) => actions2.setChartsWindow(nextState)
+  });
+  floating.content.append(panel);
+  const chart = createChartCanvas(canvas, tooltip);
+  function syncControlValues(state) {
+    mode.value = state.chartControls.mode;
+    metricSelect.value = state.chartControls.metric;
+    range.value = state.chartControls.range;
+    smoothing.value = state.chartControls.smoothing;
+  }
+  function buildLineModel(state) {
+    const turns = getHistoryTurns(state.history, state.chartControls.range);
+    const metric = state.chartControls.metric;
+    const metricConfig = metricByKey(metric);
+    const selected = state.selected;
+    const codes = [];
+    if (state.chartControls.mode === "selected" && selected) codes.push(selected);
+    if (state.chartControls.mode === "pinned") codes.push(...state.chartPinned);
+    if (state.chartControls.mode !== "pinned" && state.chartControls.mode !== "selected") {
+      if (selected) codes.push(selected);
+      for (const code of state.chartPinned) if (!codes.includes(code)) codes.push(code);
+    }
+    const series = codes.filter((code) => state.countryIndex?.[code]).map((code) => {
+      const values = getCountryMetricSeries(state.history, code, metric, state.chartControls.range);
+      return {
+        code,
+        label: state.countryIndex[code]?.name ?? code,
+        colour: stableCountryColour(code, state.seed),
+        highlight: code === selected,
+        values: applySmoothing(values, state.chartControls.smoothing)
+      };
+    }).filter((entry) => entry.values.length);
+    if (state.chartControls.mode === "region") {
+      const regionValues = applySmoothing(regionAverageSeries(state, turns, metric, state.chartControls.range) ?? [], state.chartControls.smoothing);
+      if (regionValues.length) series.push({ code: "region", label: "Region average", colour: "#ffd166", highlight: false, values: regionValues });
+    }
+    if (state.chartControls.mode === "neighbours") {
+      const nValues = applySmoothing(neighbourAverageSeries(state, turns, metric, state.chartControls.range) ?? [], state.chartControls.smoothing);
+      if (nValues.length) series.push({ code: "neighbourAvg", label: "Neighbour average", colour: "#5ec2ff", highlight: false, values: nValues });
+    }
+    const allValues = series.flatMap((entry) => entry.values);
+    const yMin = Math.min(...allValues, 0);
+    const yMax = Math.max(...allValues, 1);
+    return {
+      type: "line",
+      title: `${metricConfig.label} by turn`,
+      turns,
+      metricFormat: metricConfig.format,
+      series,
+      yMin,
+      yMax,
+      xLabel: "Turn"
+    };
+  }
+  function buildBarModel(state) {
+    const metric = state.chartControls.metric;
+    const metricConfig = metricByKey(metric);
+    const top = getTopCountriesForMetric(state, metric, 20);
+    const values = top.map((entry) => entry.value);
+    return {
+      type: "bar",
+      title: `World top 20 \xB7 ${metricConfig.label}`,
+      metricFormat: metricConfig.format,
+      yMin: 0,
+      yMax: Math.max(...values, 1),
+      bars: top.map((entry) => ({
+        label: `${entry.label} (${entry.code})`,
+        value: entry.value,
+        colour: stableCountryColour(entry.code, state.seed)
+      }))
+    };
+  }
+  function renderPinnedTags(state) {
+    tags.innerHTML = "";
+    for (const code of state.chartPinned) {
+      const tag = el("button", "chart-tag", `${state.countryIndex?.[code]?.name ?? code} \u2715`);
+      tag.type = "button";
+      tag.style.borderColor = stableCountryColour(code, state.seed);
+      tag.onclick = () => actions2.unpinCountry(code);
+      tags.append(tag);
+    }
+  }
+  function render(state) {
+    syncControlValues(state);
+    floating.render(state.chartsWindow);
+    if (!state.chartsWindow.open) return;
+    renderPinnedTags(state);
+    const model = state.chartControls.mode === "world" ? buildBarModel(state) : buildLineModel(state);
+    chart.render(model);
+  }
+  mode.onchange = () => actions2.setChartControls({ mode: mode.value });
+  metricSelect.onchange = () => actions2.setChartControls({ metric: metricSelect.value });
+  range.onchange = () => actions2.setChartControls({ range: range.value });
+  smoothing.onchange = () => actions2.setChartControls({ smoothing: smoothing.value });
+  pinSelected.onclick = () => {
+    const selected = store2.getState().selected;
+    if (selected) actions2.pinCountry(selected);
+  };
+  return { render };
+}
+
 // web/src/main.js
 var root = document.getElementById("app");
 async function fetchJsonSafe(url, fallback) {
@@ -3637,6 +4257,7 @@ var neighbours = neighboursPayload?.neighbours ?? {};
 var initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 root.innerHTML = "";
 var ui = buildLayout(root);
+var initialHistory = createHistoryStore(Object.keys(countryIndex));
 var store = createStore({
   seed: 1337,
   turn: 0,
@@ -3657,10 +4278,16 @@ var store = createStore({
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
   postureByCountry: {},
-  relationEffects: createInitialRelationEffects()
+  relationEffects: createInitialRelationEffects(),
+  chartsWindow: { open: false, x: 140, y: 90, w: 780, h: 470, zIndex: 28 },
+  chartControls: { mode: "selected", metric: "gdp", range: "200", smoothing: "none" },
+  chartPinned: [],
+  history: initialHistory
 });
+recordHistoryTurn(initialHistory, store.getState());
 var actions = createActions(store);
 var controls = renderTopbar(ui.topbar, actions);
+var chartsWindow = createChartsWindow(ui.mapWrap, store, actions);
 wireSearch(controls.search, fullCountries, actions);
 controls.save.onclick = () => saveToLocal(makeSnapshot(store.getState()));
 controls.load.onclick = () => {
@@ -3674,6 +4301,7 @@ controls.importBtn.onclick = async () => {
 };
 controls.newGame.onclick = () => actions.newGame(Math.random() * 1e9 | 0);
 controls.help.onclick = () => showHelp();
+controls.charts.onclick = () => actions.toggleChartsWindow();
 var renderer = createRenderer(ui.canvas, topo, store.getState);
 renderer.resize();
 actions.setCamera(constrainCamera(store.getState().camera, ui.canvas.clientWidth, ui.canvas.clientHeight));
@@ -3692,13 +4320,13 @@ function getTooltipInputs(state) {
   const hovered = state.hovered;
   const country = hovered ? state.countryIndex[hovered] : null;
   const dyn = hovered ? state.dynamic[hovered] : null;
-  const metricValue = hovered ? state.metric === "militaryPercentGdp" ? dyn?.militaryPct : state.metric === "gdp" ? dyn?.gdp : country?.indicators?.[state.metric] : null;
+  const metricValue2 = hovered ? state.metric === "militaryPercentGdp" ? dyn?.militaryPct : state.metric === "gdp" ? dyn?.gdp : country?.indicators?.[state.metric] : null;
   return {
     hovered,
     x: mouse.x,
     y: mouse.y,
     metric: state.metric,
-    metricValue,
+    metricValue: metricValue2,
     gdp: dyn?.gdp,
     population: country?.population
   };
@@ -3809,7 +4437,10 @@ ui.canvas.addEventListener("wheel", (e) => {
   actions.setCamera(zoomAtPoint(store.getState().camera, factor, e.offsetX, e.offsetY, ui.canvas.clientWidth, ui.canvas.clientHeight));
 }, { passive: false });
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeHelp();
+  if (e.key === "Escape") {
+    closeHelp();
+    if (store.getState().chartsWindow.open) actions.setChartsWindow({ open: false });
+  }
   if (isTypingTarget()) return;
   if (e.code === "Space") {
     e.preventDefault();
@@ -3821,6 +4452,10 @@ window.addEventListener("keydown", (e) => {
     controls.search.focus();
   }
   if (e.key.toLowerCase() === "d") actions.toggleDebug();
+  if (e.key.toLowerCase() === "g") {
+    e.preventDefault();
+    actions.toggleChartsWindow();
+  }
 });
 var acc = 0;
 var last = performance.now();
@@ -3893,6 +4528,7 @@ function drawNow() {
     });
     prevLegendInputs = legendInputs;
   }
+  chartsWindow.render(state);
   const debugState = { ...state, debugInfo };
   const debugInputs = getDebugInputs(debugState);
   if (!shallowEqual(prevDebugInputs, debugInputs)) {
@@ -3916,7 +4552,7 @@ function showHelp() {
   const modal = document.createElement("div");
   modal.className = "modal";
   modal.id = "helpModal";
-  modal.innerHTML = '<div class="modal-card"><h2>Help</h2><p>Space pause/unpause \xB7 Right Arrow step \xB7 Ctrl+F focus search \xB7 D debug overlay.</p><button id="closeHelp">Close</button></div>';
+  modal.innerHTML = '<div class="modal-card"><h2>Help</h2><p>Space pause/unpause \xB7 Right Arrow step \xB7 Ctrl+F focus search \xB7 D debug overlay \xB7 G charts.</p><button id="closeHelp">Close</button></div>';
   document.body.append(modal);
   modal.querySelector("#closeHelp").onclick = () => modal.remove();
 }
