@@ -22,6 +22,7 @@ export function renderTopbar(container, actions) {
   const exportBtn = el('button', '', 'Export');
   const importBtn = el('button', '', 'Import');
   const newGame = el('button', '', 'New Game');
+  const charts = el('button', '', 'Charts');
   const help = el('button', '', 'Help');
 
   pause.onclick = () => actions.togglePause();
@@ -30,6 +31,6 @@ export function renderTopbar(container, actions) {
   overlay.onchange = () => actions.setOverlay(overlay.value);
   metric.onchange = () => actions.setMetric(metric.value);
 
-  container.append(search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help);
-  return { search, pause, step, speed, overlay, metric, save, load, exportBtn, importBtn, newGame, help };
+  container.append(search, pause, step, speed, overlay, metric, charts, save, load, exportBtn, importBtn, newGame, help);
+  return { search, pause, step, speed, overlay, metric, charts, save, load, exportBtn, importBtn, newGame, help };
 }

@@ -16,6 +16,8 @@ import { pickCountry } from './map/picking.js';
 import { createFpsCounter } from './util/perf.js';
 import { isTypingTarget } from './util/dom.js';
 import { getNeighbours } from './state/relationships.js';
+import { createHistoryStore, recordHistoryTurn } from './sim/historyStore.js';
+import { createChartsWindow } from './ui/chartsWindow.js';
 
 const root = document.getElementById('app');
 
@@ -46,6 +48,14 @@ const initialRelations = createInitialRelations(1337, neighbours, countryIndex);
 
 root.innerHTML = '';
 const ui = buildLayout(root);
+const defaultCharts = {
+  mode: 'selected',
+  metric: 'gdp',
+  range: '200',
+  smoothing: 'none',
+  pinned: [],
+  window: { x: 48, y: 84, w: 760, h: 460, open: false, z: 10 }
+};
 const store = createStore({
   seed: 1337,
   turn: 0,
@@ -66,8 +76,14 @@ const store = createStore({
   relations: initialRelations.relations,
   relationEdges: initialRelations.edges,
   postureByCountry: {},
-  relationEffects: createInitialRelationEffects()
+  relationEffects: createInitialRelationEffects(),
+  charts: defaultCharts,
+  history: null
 });
+
+const bootHistory = createHistoryStore(store.getState());
+recordHistoryTurn(bootHistory, store.getState(), 0);
+store.setState((state) => ({ ...state, history: bootHistory }));
 const actions = createActions(store);
 const controls = renderTopbar(ui.topbar, actions);
 wireSearch(controls.search, fullCountries, actions);
@@ -77,6 +93,7 @@ controls.load.onclick = () => { const s = loadFromLocal(); if (s) actions.loadSt
 controls.exportBtn.onclick = () => exportJson(makeSnapshot(store.getState()));
 controls.importBtn.onclick = async () => { const s = await importJsonFile(); if (s) actions.loadState(s); };
 controls.newGame.onclick = () => actions.newGame((Math.random() * 1e9) | 0);
+controls.charts.onclick = () => actions.toggleChartsWindow();
 controls.help.onclick = () => showHelp();
 
 const renderer = createRenderer(ui.canvas, topo, store.getState);
@@ -88,12 +105,18 @@ let latestHoverPointer = null;
 let hoverPickQueued = false;
 let debugInfo = { fps: 0, candidates: 0, renderMs: 0 };
 const fpsCounter = createFpsCounter();
+const chartsWindow = createChartsWindow({
+  parent: ui.floatingLayer,
+  actions,
+  getState: store.getState
+});
 
 let prevTooltipInputs = null;
 let prevDossierStructuralInputs = null;
 let prevDossierTelemetryInputs = null;
 let prevLegendInputs = null;
 let prevDebugInputs = null;
+let prevChartsInputs = null;
 
 function getTooltipInputs(state) {
   const hovered = state.hovered;
@@ -181,6 +204,22 @@ function getLegendInputs(state) {
   };
 }
 
+function getChartsInputs(state) {
+  return {
+    turn: state.turn,
+    selected: state.selected,
+    chartsMode: state.charts?.mode,
+    chartsMetric: state.charts?.metric,
+    chartsRange: state.charts?.range,
+    chartsSmoothing: state.charts?.smoothing,
+    pinned: (state.charts?.pinned ?? []).join(','),
+    open: state.charts?.window?.open,
+    rect: `${state.charts?.window?.x},${state.charts?.window?.y},${state.charts?.window?.w},${state.charts?.window?.h}`,
+    historyHead: state.history?.head,
+    historyLength: state.history?.length
+  };
+}
+
 function getDebugInputs(state) {
   return {
     debug: state.debug,
@@ -237,12 +276,16 @@ ui.canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeHelp();
+  if (e.key === 'Escape') {
+    closeHelp();
+    if (store.getState().charts.window.open) actions.setChartsWindowOpen(false);
+  }
   if (isTypingTarget()) return;
   if (e.code === 'Space') { e.preventDefault(); actions.togglePause(); }
   if (e.key === 'ArrowRight') actions.stepTurn();
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); controls.search.focus(); }
   if (e.key.toLowerCase() === 'd') actions.toggleDebug();
+  if (e.key.toLowerCase() === 'g') actions.toggleChartsWindow();
 });
 
 let acc = 0;
@@ -316,6 +359,12 @@ function drawNow() {
       }
     });
     prevLegendInputs = legendInputs;
+  }
+
+  const chartsInputs = getChartsInputs(state);
+  if (!shallowEqual(prevChartsInputs, chartsInputs)) {
+    chartsWindow.render(state);
+    prevChartsInputs = chartsInputs;
   }
 
   const debugState = { ...state, debugInfo };
